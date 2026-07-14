@@ -63,11 +63,11 @@ function newGame(teamName, difficulty, opts) {
 
   if (opts.mode === 'nba') {
     // your roster = the real team's players; the market pool = everyone
-    // outside each team's top 7 (the league's "trade block")
+    // outside each team's starting five (the league's "trade block")
     for (const arr of nbaTeam.players) S.roster.push(realToPlayer(arr, true));
     NBA_DATA.teams.forEach((t, i) => {
       if (i === opts.teamIdx) return;
-      for (const arr of [...t.players].sort((a, b) => b[3] - a[3]).slice(7)) S.nbaPool.push(arr);
+      for (const arr of [...t.players].sort((a, b) => b[3] - a[3]).slice(5)) S.nbaPool.push(arr);
     });
     while (S.market.length < CFG.MARKET_SIZE) S.market.push(genMarketPlayer());
   } else {
@@ -175,10 +175,16 @@ function tickPlayerValue(p, extraDrift) {
   p.form = clamp(p.form + (rng() - 0.5) * 0.04, 0.85, 1.15);
 }
 
+function marketDrop(p) {
+  const out = S.market.splice(S.market.indexOf(p), 1)[0];
+  if (S.mode === 'nba' && out) S.nbaPool.push([out.name, out.pos, out.age, out.ovr]);
+}
+
 function tickMarket(dayNews) {
   for (const p of S.market) tickPlayerValue(p, 0);
-  // occasional market-moving news → the buy-low / sell-high opportunity
-  if (rng() < 0.55 && S.market.length) {
+  // market-moving news → the buy-low / sell-high opportunity (up to 2 a day)
+  const newsCount = rng() < 0.55 ? (rng() < 0.35 ? 2 : 1) : 0;
+  for (let n = 0; n < newsCount && S.market.length; n++) {
     const p = S.market[Math.floor(rng() * S.market.length)];
     const good = rng() < 0.5;
     const swing = 0.15 + rng() * 0.10;
@@ -188,16 +194,33 @@ function tickMarket(dayNews) {
     const pool = good ? NEWS_GOOD : NEWS_BAD;
     dayNews.push(pool[Math.floor(rng() * pool.length)].replace('{p}', p.name));
   }
-  // rotate one player out, one in, sometimes — keeps the market fresh
-  if (rng() < 0.30) {
-    const idx = Math.floor(rng() * S.market.length);
-    const out = S.market.splice(idx, 1)[0];
-    if (S.mode === 'nba' && out) S.nbaPool.push([out.name, out.pos, out.age, out.ovr]);
+  // churn 1–3 players out so the pool never goes stale
+  if (rng() < 0.55) {
+    const churn = 1 + Math.floor(rng() * 3);
+    for (let c = 0; c < churn && S.market.length > 4; c++) {
+      marketDrop(S.market[Math.floor(rng() * S.market.length)]);
+    }
   }
   while (S.market.length < CFG.MARKET_SIZE) S.market.push(genMarketPlayer());
   while (S.market.length > CFG.MARKET_SIZE) {   // players you sold can push it over
-    const out = S.market.splice(Math.floor(rng() * S.market.length), 1)[0];
-    if (S.mode === 'nba' && out) S.nbaPool.push([out.name, out.pos, out.age, out.ovr]);
+    marketDrop(S.market[Math.floor(rng() * S.market.length)]);
+  }
+  // rare blockbuster: a genuine star hits the market at a demanding price
+  if (rng() < 0.10) {
+    let star = null;
+    if (S.mode === 'nba' && S.nbaPool.length) {
+      const bestIdx = S.nbaPool.reduce((bi, arr, i) => arr[3] > S.nbaPool[bi][3] ? i : bi, 0);
+      if (S.nbaPool[bestIdx][3] >= 78) star = realToPlayer(S.nbaPool.splice(bestIdx, 1)[0], false);
+    } else if (S.mode !== 'nba') {
+      star = genPlayer(84, 94, false);
+    }
+    if (star) {
+      star.value = Math.round(star.value * 1.15);   // stars command a premium on arrival
+      star.hist = [star.value];
+      marketDrop(S.market[Math.floor(rng() * S.market.length)]);   // star takes someone's slot
+      S.market.push(star);
+      dayNews.unshift(`🚨 BLOCKBUSTER: ${star.name} demands a trade — now on the market`);
+    }
   }
 }
 

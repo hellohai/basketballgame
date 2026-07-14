@@ -1,7 +1,11 @@
-/* Courtside Capital — plug-in controller support (standard-mapping Gamepad API)
-   LB/RB or D-pad ◀▶  switch tabs        A  select / play / skip
-   D-pad ▲▼           move focus         B  back / close modal
-   LT/RT              ticket price −/+                                     */
+/* Courtside Capital — controller & keyboard support
+   Gamepad (standard mapping):
+     LB/RB or D-pad ◀▶  switch tabs        A  select / play / skip
+     D-pad ▲▼           move focus         B  back / close modal
+     LT/RT              ticket price −/+
+   Keyboard:
+     1–6 jump to screen · Q/E or ←→ prev/next screen · ↑↓ move focus
+     Space/Enter select / play / skip · Esc back · +/− ticket price · ? help */
 
 (function () {
   const TAB_ORDER = ['office', 'roster', 'market', 'tech', 'finance', 'league'];
@@ -131,4 +135,54 @@
 
   window.addEventListener('gamepadconnected', () => { /* poll loop below picks it up */ });
   document.addEventListener('DOMContentLoaded', () => requestAnimationFrame(poll));
+
+  /* ---------------- keyboard: same brain, different fingers ---------------- */
+
+  const SHORTCUTS_HELP =
+    '⌨️ 1–6 screens · Q/E or ←→ prev/next · ↑↓ focus · Space/Enter select or play · Esc back · +/− price · ? help';
+
+  function typingIn(el) {
+    return el && (el.matches('input[type="text"], textarea, select') || el.isContentEditable);
+  }
+
+  document.addEventListener('keydown', ev => {
+    if (typingIn(ev.target)) return;
+    const appVisible = $('#app') && !$('#app').classList.contains('hidden');
+    const k = ev.key;
+
+    // let the browser drive a natively-focused slider with arrows
+    if (ev.target.matches && ev.target.matches('input[type="range"]') &&
+        (k === 'ArrowLeft' || k === 'ArrowRight' || k === 'ArrowUp' || k === 'ArrowDown')) return;
+
+    if (k >= '1' && k <= '6' && appVisible) {
+      switchTab(TAB_ORDER[+k - 1]);
+      focusIdx = -1;
+      ev.preventDefault();
+    } else if (k === 'q' || k === 'Q' || k === 'ArrowLeft') {
+      shiftTab(-1); ev.preventDefault();
+    } else if (k === 'e' || k === 'E' || k === 'ArrowRight') {
+      shiftTab(1); ev.preventDefault();
+    } else if (k === 'ArrowUp') {
+      setFocus(-1); ev.preventDefault();
+    } else if (k === 'ArrowDown') {
+      setFocus(1); ev.preventDefault();
+    } else if (k === ' ' || k === 'Enter') {
+      // a genuinely tab-focused button should still click natively on Enter
+      if (k === 'Enter' && ev.target.matches && ev.target.matches('button')) return;
+      pressA(); ev.preventDefault();
+    } else if (k === 'Escape') {
+      pressB();
+    } else if (k === '+' || k === '=') {
+      nudgePrice(1); ev.preventDefault();
+    } else if (k === '-' || k === '_') {
+      nudgePrice(-1); ev.preventDefault();
+    } else if (k === '?') {
+      toast(SHORTCUTS_HELP);
+    }
+  });
+
+  document.addEventListener('DOMContentLoaded', () => {
+    const kb = $('#kb-indicator');
+    if (kb) kb.addEventListener('click', () => toast(SHORTCUTS_HELP));
+  });
 })();

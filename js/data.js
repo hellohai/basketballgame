@@ -7,7 +7,7 @@ const CFG = {
   ARENA_CAPACITY: 18000,
   ROSTER_MIN: 8,
   ROSTER_MAX: 12,
-  MARKET_SIZE: 24,
+  MARKET_SIZE: 32,
   PRICE_ELASTICITY: 1.3,   // attendance ∝ (refPrice/price)^ε above the reference price
   CONCESSION_PER_FAN: 9,
   ARENA_OPS_HOME: 400_000,
