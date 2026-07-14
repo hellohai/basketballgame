@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Courtside Capital — Basketball Franchise Tycoon</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🏀</text></svg>">
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+<!-- ============ START SCREEN ============ -->
+<div id="start-screen" class="overlay">
+  <div class="overlay-card">
+    <div class="logo-mark">🏀</div>
+    <h1>Courtside Capital</h1>
+    <p class="tagline">Run the franchise. Beat the market. Win the ring.</p>
+    <p class="intro-copy">
+      You just bought a struggling basketball franchise. Over a 24-game season you'll
+      set ticket prices against a live demand curve, trade players on a fluctuating
+      market, and invest in technology — analytics, training science, sports medicine,
+      and a digital fan platform — to out-think richer rivals.
+    </p>
+    <label class="field-label" for="team-name-input">Name your franchise</label>
+    <input id="team-name-input" type="text" maxlength="24" value="Bay City Circuits" autocomplete="off">
+    <label class="field-label">Difficulty <span class="hint">(sets starting capital)</span></label>
+    <div class="difficulty-row" id="difficulty-row">
+      <button class="diff-btn" data-diff="easy">Rookie<span>$40M</span></button>
+      <button class="diff-btn selected" data-diff="normal">Pro<span>$25M</span></button>
+      <button class="diff-btn" data-diff="hard">Legend<span>$15M</span></button>
+    </div>
+    <button id="start-btn" class="btn btn-primary btn-big">Take Ownership</button>
+    <button id="continue-btn" class="btn btn-ghost hidden">Continue saved season</button>
+  </div>
+</div>
+
+<!-- ============ MAIN APP ============ -->
+<div id="app" class="hidden">
+  <header id="topbar">
+    <div class="brand">
+      <span class="brand-ball">🏀</span>
+      <div>
+        <div id="hud-team" class="brand-name">—</div>
+        <div id="hud-record" class="brand-sub">0–0 · Game 1 of 24</div>
+      </div>
+    </div>
+    <div class="hud-stats">
+      <div class="hud-stat"><span class="hud-label">Cash</span><span id="hud-cash" class="hud-value">$0</span></div>
+      <div class="hud-stat"><span class="hud-label">Fan hype</span><span id="hud-hype" class="hud-value">0</span></div>
+      <div class="hud-stat"><span class="hud-label">Payroll / game</span><span id="hud-payroll" class="hud-value">$0</span></div>
+      <div class="hud-stat"><span class="hud-label">Franchise value</span><span id="hud-networth" class="hud-value">$0</span></div>
+    </div>
+  </header>
+
+  <div id="ticker-wrap"><div id="ticker">Welcome to the league.</div></div>
+
+  <nav id="tabs">
+    <button class="tab selected" data-tab="office">Front Office</button>
+    <button class="tab" data-tab="roster">Roster</button>
+    <button class="tab" data-tab="market">Trade Market</button>
+    <button class="tab" data-tab="tech">Tech Lab</button>
+    <button class="tab" data-tab="finance">Finances</button>
+    <button class="tab" data-tab="league">League</button>
+  </nav>
+
+  <main>
+    <!-- Front Office -->
+    <section id="tab-office" class="tab-panel">
+      <div class="office-grid">
+        <div class="card" id="next-game-card">
+          <h2 class="card-title">Next game</h2>
+          <div id="matchup"></div>
+          <button id="play-btn" class="btn btn-primary btn-big">Play Game ▸</button>
+        </div>
+        <div class="card">
+          <h2 class="card-title">Ticket pricing <span class="hint">— demand is price-elastic</span></h2>
+          <div class="price-row">
+            <input type="range" id="price-slider" min="10" max="200" step="1" value="45">
+            <div class="price-readout">$<span id="price-value">45</span></div>
+          </div>
+          <div id="demand-readout" class="demand-readout"></div>
+          <p class="econ-note" id="econ-note"></p>
+        </div>
+        <div class="card" id="advisor-card">
+          <h2 class="card-title">Front-office briefing</h2>
+          <ul id="advisor-list" class="advisor-list"></ul>
+        </div>
+      </div>
+    </section>
+
+    <!-- Roster -->
+    <section id="tab-roster" class="tab-panel hidden">
+      <div class="card">
+        <h2 class="card-title">Your roster <span class="hint" id="roster-count"></span></h2>
+        <div id="roster-list" class="player-grid"></div>
+      </div>
+    </section>
+
+    <!-- Market -->
+    <section id="tab-market" class="tab-panel hidden">
+      <div class="card">
+        <h2 class="card-title">Trade market <span class="hint">— prices move every game day. Buy low, sell high.</span></h2>
+        <p class="econ-note" id="market-note"></p>
+        <div id="market-list" class="player-grid"></div>
+      </div>
+    </section>
+
+    <!-- Tech -->
+    <section id="tab-tech" class="tab-panel hidden">
+      <div class="card">
+        <h2 class="card-title">Technology investments <span class="hint">— capital expenditure with compounding returns</span></h2>
+        <div id="tech-list" class="tech-grid"></div>
+      </div>
+    </section>
+
+    <!-- Finances -->
+    <section id="tab-finance" class="tab-panel hidden">
+      <div class="finance-grid">
+        <div class="card">
+          <h2 class="card-title">Cash over the season</h2>
+          <div id="cash-chart" class="chart-box"></div>
+        </div>
+        <div class="card">
+          <h2 class="card-title">Revenue vs expenses <span class="hint">— last 10 game days</span></h2>
+          <div class="chart-legend">
+            <span class="legend-item"><span class="swatch swatch-rev"></span>Revenue</span>
+            <span class="legend-item"><span class="swatch swatch-exp"></span>Expenses</span>
+          </div>
+          <div id="revexp-chart" class="chart-box"></div>
+        </div>
+        <div class="card card-wide">
+          <h2 class="card-title">Ledger</h2>
+          <div class="table-scroll">
+            <table id="ledger-table">
+              <thead><tr><th>Day</th><th>Event</th><th class="num">Amount</th><th class="num">Balance</th></tr></thead>
+              <tbody></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- League -->
+    <section id="tab-league" class="tab-panel hidden">
+      <div class="league-grid">
+        <div class="card">
+          <h2 class="card-title">Standings</h2>
+          <div class="table-scroll">
+            <table id="standings-table">
+              <thead><tr><th>#</th><th>Team</th><th class="num">W</th><th class="num">L</th><th class="num">Str</th></tr></thead>
+              <tbody></tbody>
+            </table>
+          </div>
+        </div>
+        <div class="card">
+          <h2 class="card-title">Your results</h2>
+          <ul id="results-list" class="results-list"></ul>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer id="footer">
+    <span>Courtside Capital · a basketball × economics × technology game</span>
+    <button id="reset-btn" class="btn btn-ghost btn-small">Restart season</button>
+  </footer>
+</div>
+
+<!-- ============ GAME RESULT MODAL ============ -->
+<div id="result-modal" class="overlay hidden">
+  <div class="overlay-card">
+    <h2 id="result-headline">Final</h2>
+    <div id="result-score" class="result-score"></div>
+    <div id="result-details"></div>
+    <button id="result-close" class="btn btn-primary btn-big">Continue ▸</button>
+  </div>
+</div>
+
+<!-- ============ SEASON END ============ -->
+<div id="season-modal" class="overlay hidden">
+  <div class="overlay-card">
+    <h1 id="season-headline"></h1>
+    <div id="season-summary"></div>
+    <button id="season-restart" class="btn btn-primary btn-big">Play another season</button>
+  </div>
+</div>
+
+<script src="js/data.js"></script>
+<script src="js/engine.js"></script>
+<script src="js/charts.js"></script>
+<script src="js/ui.js"></script>
+</body>
+</html>
