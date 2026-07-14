@@ -15,6 +15,7 @@
     <div class="logo-mark">🏀</div>
     <h1>Courtside Capital</h1>
     <p class="tagline">Run the franchise. Beat the market. Win the ring.</p>
+    <div id="challenge-banner" class="challenge-banner hidden"></div>
     <p class="intro-copy">
       You just bought a struggling basketball franchise. Over a 24-game season you'll
       set ticket prices against a live demand curve, trade players on a fluctuating
@@ -42,7 +43,6 @@
       <button class="diff-btn" data-diff="hard">Legend<span>$15M</span></button>
     </div>
     <button id="start-btn" class="btn btn-primary btn-big">Take Ownership</button>
-    <button id="continue-btn" class="btn btn-ghost hidden">Continue saved season</button>
   </div>
 </div>
 
@@ -57,12 +57,15 @@
       </div>
     </div>
     <div class="hud-stats">
+      <div class="hud-stat" id="hud-streak-wrap" title="Consecutive days played"><span class="hud-label">Streak</span><span id="hud-streak" class="hud-value">—</span></div>
       <div class="hud-stat"><span class="hud-label">Cash</span><span id="hud-cash" class="hud-value">$0</span></div>
       <div class="hud-stat"><span class="hud-label">Fan hype</span><span id="hud-hype" class="hud-value">0</span></div>
       <div class="hud-stat"><span class="hud-label">Payroll / game</span><span id="hud-payroll" class="hud-value">$0</span></div>
       <div class="hud-stat"><span class="hud-label">Franchise value</span><span id="hud-networth" class="hud-value">$0</span></div>
     </div>
   </header>
+
+  <div id="season-strip" title="Season progress — one dot per game"></div>
 
   <div id="ticker-wrap"><div id="ticker">Welcome to the league.</div></div>
 
@@ -84,7 +87,7 @@
           <div id="matchup"></div>
           <button id="play-btn" class="btn btn-primary btn-big">Play Game ▸</button>
         </div>
-        <div class="card">
+        <div class="card" id="pricing-card">
           <h2 class="card-title">Ticket pricing <span class="hint">— demand is price-elastic</span></h2>
           <div class="price-row">
             <input type="range" id="price-slider" min="10" max="200" step="1" value="45">
@@ -92,6 +95,10 @@
           </div>
           <div id="demand-readout" class="demand-readout"></div>
           <p class="econ-note" id="econ-note"></p>
+        </div>
+        <div class="card" id="objectives-card">
+          <h2 class="card-title">Season objectives <span class="hint" id="obj-progress"></span></h2>
+          <div id="objectives-list" class="objectives-list"></div>
         </div>
         <div class="card" id="advisor-card">
           <h2 class="card-title">Front-office briefing</h2>
@@ -178,13 +185,23 @@
   </footer>
 </div>
 
-<!-- ============ GAME RESULT MODAL ============ -->
+<!-- ============ LIVE GAME / RESULT MODAL ============ -->
 <div id="result-modal" class="overlay hidden">
-  <div class="overlay-card">
-    <h2 id="result-headline">Final</h2>
-    <div id="result-score" class="result-score"></div>
-    <div id="result-details"></div>
-    <button id="result-close" class="btn btn-primary btn-big">Continue ▸</button>
+  <div class="overlay-card game-card">
+    <h2 id="result-headline">Tip-off</h2>
+    <div class="scoreboard">
+      <div class="sb-team"><span id="sb-us-name"></span><span id="sb-us-score" class="sb-score">0</span></div>
+      <div class="sb-mid" id="sb-quarter">Q1</div>
+      <div class="sb-team"><span id="sb-them-name"></span><span id="sb-them-score" class="sb-score">0</span></div>
+    </div>
+    <div id="quarter-row" class="quarter-row"></div>
+    <div id="pbp-feed" class="pbp-feed"></div>
+    <div id="result-details" class="hidden"></div>
+    <div class="modal-actions">
+      <button id="result-share" class="btn btn-ghost hidden">📤 Share</button>
+      <button id="result-skip" class="btn btn-ghost">Skip ▸▸</button>
+      <button id="result-close" class="btn btn-primary hidden">Continue ▸</button>
+    </div>
   </div>
 </div>
 
@@ -193,7 +210,27 @@
   <div class="overlay-card">
     <h1 id="season-headline"></h1>
     <div id="season-summary"></div>
+    <div class="modal-actions">
+      <button id="season-share" class="btn btn-ghost">📤 Share season card</button>
+      <button id="season-challenge" class="btn btn-ghost">⚔️ Challenge a friend</button>
+    </div>
     <button id="season-restart" class="btn btn-primary btn-big">Play another season</button>
+  </div>
+</div>
+
+<!-- floating play button (visible when you're off the Front Office tab) -->
+<button id="fab-play" class="hidden">▶ PLAY GAME</button>
+
+<!-- toasts, confetti, coach tour -->
+<div id="toast-stack"></div>
+<div id="confetti-root"></div>
+<div id="tour-overlay" class="hidden">
+  <div id="tour-tip">
+    <div id="tour-text"></div>
+    <div class="tour-actions">
+      <button id="tour-skip" class="btn btn-ghost btn-small">Skip tour</button>
+      <button id="tour-next" class="btn btn-primary btn-small">Next ▸</button>
+    </div>
   </div>
 </div>
 

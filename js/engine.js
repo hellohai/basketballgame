@@ -9,7 +9,7 @@ let rng = Math.random;
 
 function newGame(teamName, difficulty, opts) {
   opts = opts || { mode: 'fictional' };
-  const seed = (Math.random() * 2 ** 31) | 0;
+  const seed = Number.isInteger(opts.seed) ? opts.seed : (Math.random() * 2 ** 31) | 0;
   rng = makeRng(seed);
 
   let league, nbaTeam = null;
@@ -46,6 +46,11 @@ function newGame(teamName, difficulty, opts) {
     news: ['New ownership takes over ' + teamName + '. The league is watching.'],
     over: false,
     nextId: 1,
+    teamIdx: opts.mode === 'nba' ? opts.teamIdx : null,
+    obj: {},           // completed objective ids → day completed
+    objEvents: [],     // freshly completed objectives, drained by the UI for toasts
+    streakW: 0,        // current win streak
+    challenge: !!opts.challenge,   // season started from a friend's challenge link
   };
 
   S.schedule = makeSchedule(S.league.length - 1);
@@ -227,6 +232,70 @@ function ledger(label, amount) {
   S.ledger.push({ day: S.day, label, amount, balance: S.cash });
 }
 
+/* ================= objectives & streaks ================= */
+
+function completeObjective(id) {
+  if (!S || S.obj[id] !== undefined) return false;
+  const o = OBJECTIVES.find(o => o.id === id);
+  if (!o) return false;
+  S.obj[id] = S.day;
+  ledger(`Sponsor bonus — ${o.name}`, o.reward);
+  S.objEvents.push(id);
+  return true;
+}
+
+// state-based objectives, evaluated after anything that moves the needle
+function checkObjectives() {
+  if (!S || S.over) return;
+  if (S.hype >= 60) completeObjective('hype60');
+  if (S.streakW >= 3) completeObjective('streak3');
+  if (netWorth() >= S.startWorth * 1.25) completeObjective('rich');
+  if (Object.values(S.tech).some(l => l >= 3)) completeObjective('techmax');
+}
+
+// consecutive-calendar-day play streak (lives outside the season save)
+function touchDailyStreak() {
+  try {
+    const today = new Date().toISOString().slice(0, 10);
+    const st = JSON.parse(localStorage.getItem(STREAK_KEY) || '{}');
+    if (st.last === today) return null;                       // already counted today
+    const yesterday = new Date(Date.now() - 86_400_000).toISOString().slice(0, 10);
+    const n = st.last === yesterday ? (st.n || 0) + 1 : 1;
+    localStorage.setItem(STREAK_KEY, JSON.stringify({ last: today, n }));
+    if (n < 2) return { n, bonus: 0 };                        // streaks start paying at day 2
+    const bonus = STREAK_BONUS_PER_DAY * Math.min(n, 7);
+    ledger(`Daily streak bonus (day ${n} 🔥)`, bonus);
+    return { n, bonus };
+  } catch (e) { return null; }
+}
+
+function currentStreak() {
+  try {
+    const st = JSON.parse(localStorage.getItem(STREAK_KEY) || '{}');
+    const today = new Date().toISOString().slice(0, 10);
+    const yesterday = new Date(Date.now() - 86_400_000).toISOString().slice(0, 10);
+    return (st.last === today || st.last === yesterday) ? (st.n || 0) : 0;
+  } catch (e) { return 0; }
+}
+
+/* ================= challenge links ================= */
+
+function challengeCode() {
+  return ['1', S.mode, S.mode === 'nba' ? S.teamIdx : 'x', S.difficulty, S.seed.toString(36)].join('.');
+}
+
+function parseChallenge(hash) {
+  const m = /c=([^&]+)/.exec(hash || '');
+  if (!m) return null;
+  const parts = m[1].split('.');
+  if (parts.length !== 5 || parts[0] !== '1') return null;
+  const [, mode, teamIdx, diff, seed36] = parts;
+  const seed = parseInt(seed36, 36);
+  if (!['fictional', 'nba'].includes(mode) || !CFG.START_CASH[diff] || !Number.isInteger(seed)) return null;
+  if (mode === 'nba' && !(NBA_DATA.teams[+teamIdx])) return null;
+  return { mode, teamIdx: mode === 'nba' ? +teamIdx : null, difficulty: diff, seed };
+}
+
 /* ================= team strength & simulation ================= */
 
 function teamStrength(home) {
@@ -271,6 +340,18 @@ function playGameDay() {
   if (win) { m.opp.l += 1; } else { m.opp.w += 1; }
   const you = S.league.find(t => t.you);
   if (win) you.w += 1; else you.l += 1;
+  S.streakW = win ? S.streakW + 1 : 0;
+
+  // quarter splits that sum exactly to the final (for the live-game animation)
+  const quarters = [];
+  let remUs = us, remThem = them;
+  for (let q = 0; q < 4; q++) {
+    const left = 3 - q;
+    const qUs = left ? clamp(Math.round(us / 4 + (rng() - 0.5) * 10), 12, remUs - left * 12) : remUs;
+    const qThem = left ? clamp(Math.round(them / 4 + (rng() - 0.5) * 10), 12, remThem - left * 12) : remThem;
+    quarters.push([qUs, qThem]);
+    remUs -= qUs; remThem -= qThem;
+  }
 
   // hype reacts to results; the fan platform slows the bleed
   const lossHit = -5 + Math.min(2, S.tech.platform);
@@ -290,8 +371,9 @@ function playGameDay() {
     addRev('Concessions', d.concessions);
     const merchRate = 2 + S.hype * 0.05;
     addRev('Merchandise', d.attendance * merchRate * (S.tech.platform >= 2 ? 1.1 : 1));
-    if (S.tech.platform >= 3 && d.attendance >= CFG.ARENA_CAPACITY * 0.99) {
-      addRev('Sellout bonus', 250_000);
+    if (d.attendance >= CFG.ARENA_CAPACITY * 0.99) {
+      completeObjective('sellout');
+      if (S.tech.platform >= 3) addRev('Sellout bonus', 250_000);
     }
     addRev('Local sponsorships', S.hype * 8_000);
   } else {
@@ -306,7 +388,9 @@ function playGameDay() {
   if (m.home) addExp('Arena operations', CFG.ARENA_OPS_HOME);
 
   S.gamesFin.push({ day: S.day, revenue: fin.revenue, expenses: fin.expenses });
-  S.cashHistory.push(S.cash);
+
+  if (win) completeObjective('win1');
+  const streakInfo = touchDailyStreak();
 
   // --- injuries & recovery ---
   const medF = [1, 0.67, 0.5, 0.3][S.tech.medicine];
@@ -355,9 +439,12 @@ function playGameDay() {
   for (const t of S.league) if (!t.you) t.str = clamp(t.str + (rng() - 0.5) * 1.2, 55, 92);
   you.str = teamStrength(false);
 
+  checkObjectives();
+  S.cashHistory.push(S.cash);
+
   const result = {
     day: S.day, opp: m.opp.name, home: m.home, us, them, win,
-    fin, events, upset,
+    fin, events, upset, quarters, streakInfo,
   };
   S.results.push(result);
   S.news = dayNews.concat(events.slice(0, 2));
@@ -381,10 +468,13 @@ function buyPlayer(id) {
   if (S.cash < cost) return { ok: false, msg: 'Not enough cash for this deal.' };
   S.market.splice(idx, 1);
   p.mine = true;
+  p.paid = cost;
   p.salary = Math.round(p.value * CFG.SALARY_RATIO);
   S.roster.push(p);
   ledger(`Signed ${p.name}`, -cost);
   if (p.ovr >= 82) S.hype = clamp(S.hype + 5, 5, 100);
+  completeObjective('sign');
+  checkObjectives();
   saveGame();
   return { ok: true, msg: `${p.name} signed for ${fmtMoney(cost)} (incl. ${Math.round(buyFee() * 100)}% agent fee).` };
 }
@@ -399,6 +489,8 @@ function sellPlayer(id) {
   S.market.push(p);
   ledger(`Sold ${p.name}`, p.value);
   if (p.ovr >= 82) S.hype = clamp(S.hype - 4, 5, 100);
+  if (p.paid && p.value > p.paid) completeObjective('flip');
+  checkObjectives();
   saveGame();
   return { ok: true, msg: `${p.name} sold for ${fmtMoney(p.value)}.` };
 }
@@ -411,6 +503,8 @@ function buyTech(id) {
   if (S.cash < cost) return { ok: false, msg: 'Not enough cash.' };
   S.tech[id] += 1;
   ledger(`${t.name} → level ${S.tech[id]}`, -cost);
+  completeObjective('tech1');
+  checkObjectives();
   saveGame();
   return { ok: true, msg: `${t.name} upgraded to level ${S.tech[id]}.` };
 }
@@ -448,6 +542,9 @@ function loadGame() {
     if (!s || !Array.isArray(s.roster) || s.over) return null;
     s.mode = s.mode || 'fictional';
     s.nbaPool = s.nbaPool || [];
+    s.obj = s.obj || {};
+    s.objEvents = s.objEvents || [];
+    s.streakW = s.streakW || 0;
     S = s;
     rng = makeRng((s.seed ^ (s.day * 2654435761)) >>> 0);
     return S;

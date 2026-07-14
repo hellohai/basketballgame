@@ -1,10 +1,16 @@
-/* Courtside Capital — UI: rendering & event wiring */
+/* Courtside Capital — UI: rendering, animation & event wiring */
 
 const $ = sel => document.querySelector(sel);
 const $$ = sel => [...document.querySelectorAll(sel)];
 
 let selectedDiff = 'normal';
 let selectedMode = 'fictional';
+let pendingChallenge = null;
+let currentTab = 'office';
+let animating = false;
+let lastResult = null;
+
+const TOUR_KEY = 'courtside-capital-tour-done';
 
 /* ================= boot ================= */
 
@@ -33,33 +39,32 @@ document.addEventListener('DOMContentLoaded', () => {
     const btn = ev.target.closest('.diff-btn');
     if (!btn) return;
     selectedDiff = btn.dataset.diff;
-    $$('.diff-btn').forEach(b => b.classList.toggle('selected', b === btn));
+    $$('#difficulty-row .diff-btn').forEach(b => b.classList.toggle('selected', b === btn));
   });
 
   $('#start-btn').addEventListener('click', () => {
     clearSave();
-    if (selectedMode === 'nba') {
+    if (pendingChallenge) {
+      const c = pendingChallenge;
+      const name = c.mode === 'fictional'
+        ? ($('#team-name-input').value.trim() || 'Bay City Circuits') : null;
+      newGame(name, c.difficulty, { mode: c.mode, teamIdx: c.teamIdx, seed: c.seed, challenge: true });
+      history.replaceState(null, '', location.pathname + location.search);
+    } else if (selectedMode === 'nba') {
       newGame(null, selectedDiff, { mode: 'nba', teamIdx: +$('#nba-team-select').value });
     } else {
       const name = $('#team-name-input').value.trim() || 'Bay City Circuits';
       newGame(name, selectedDiff, { mode: 'fictional' });
     }
     enterGame();
+    maybeStartTour();
   });
-
-  const saved = loadGame();
-  if (saved) {
-    $('#continue-btn').classList.remove('hidden');
-    $('#continue-btn').addEventListener('click', enterGame);
-  }
 
   // tabs
   $('#tabs').addEventListener('click', ev => {
     const tab = ev.target.closest('.tab');
     if (!tab) return;
-    $$('.tab').forEach(t => t.classList.toggle('selected', t === tab));
-    $$('.tab-panel').forEach(p => p.classList.toggle('hidden', p.id !== 'tab-' + tab.dataset.tab));
-    renderAll();
+    switchTab(tab.dataset.tab);
   });
 
   // ticket price
@@ -67,28 +72,38 @@ document.addEventListener('DOMContentLoaded', () => {
     S.ticketPrice = +$('#price-slider').value;
     renderPricing();
   });
-  $('#price-slider').addEventListener('change', saveGame);
+  $('#price-slider').addEventListener('change', () => {
+    completeObjective('price');
+    drainObjEvents();
+    saveGame();
+    renderObjectives();
+  });
 
   // play
   $('#play-btn').addEventListener('click', onPlayGame);
+  $('#fab-play').addEventListener('click', onPlayGame);
+  $('#result-skip').addEventListener('click', () => { window.__skipAnim = true; });
   $('#result-close').addEventListener('click', () => {
     $('#result-modal').classList.add('hidden');
     if (S.over) showSeasonEnd();
     renderAll();
   });
+  $('#result-share').addEventListener('click', () => shareText(buildProgressShare()));
+  $('#season-share').addEventListener('click', () => shareText(buildSeasonShare()));
+  $('#season-challenge').addEventListener('click', () => shareText(buildChallengeShare()));
 
-  // roster/market transactions (event delegation)
+  // roster/market/tech transactions (event delegation)
   $('#roster-list').addEventListener('click', ev => {
     const btn = ev.target.closest('button[data-sell]');
-    if (btn) { toast(sellPlayer(+btn.dataset.sell).msg); renderAll(); }
+    if (btn) { const r = sellPlayer(+btn.dataset.sell); toast(r.msg, r.ok ? '' : 'gold'); afterAction(); }
   });
   $('#market-list').addEventListener('click', ev => {
     const btn = ev.target.closest('button[data-buy]');
-    if (btn) { toast(buyPlayer(+btn.dataset.buy).msg); renderAll(); }
+    if (btn) { const r = buyPlayer(+btn.dataset.buy); toast(r.msg, r.ok ? '' : 'gold'); afterAction(); }
   });
   $('#tech-list').addEventListener('click', ev => {
     const btn = ev.target.closest('button[data-tech]');
-    if (btn) { toast(buyTech(btn.dataset.tech).msg); renderAll(); }
+    if (btn) { const r = buyTech(btn.dataset.tech); toast(r.msg, r.ok ? '' : 'gold'); afterAction(); }
   });
 
   $('#reset-btn').addEventListener('click', () => {
@@ -101,7 +116,48 @@ document.addEventListener('DOMContentLoaded', () => {
     clearSave();
     location.reload();
   });
+
+  // ---- entry: challenge link > saved season > start screen ----
+  pendingChallenge = parseChallenge(location.hash);
+  const saved = loadGame();
+  if (pendingChallenge) {
+    showChallengeStart(saved);
+  } else if (saved) {
+    enterGame();          // refresh drops you right back into your season
+  }
 });
+
+function afterAction() {
+  drainObjEvents();
+  renderAll();
+}
+
+function switchTab(name) {
+  currentTab = name;
+  $$('.tab').forEach(t => t.classList.toggle('selected', t.dataset.tab === name));
+  $$('.tab-panel').forEach(p => p.classList.toggle('hidden', p.id !== 'tab-' + name));
+  renderAll();
+}
+
+function showChallengeStart(saved) {
+  const c = pendingChallenge;
+  const who = c.mode === 'nba' ? NBA_DATA.teams[c.teamIdx].name : 'a fictional franchise';
+  $('#challenge-banner').classList.remove('hidden');
+  $('#challenge-banner').innerHTML =
+    `⚔️ <b>Challenge accepted!</b> A friend dared you to run <b>${escapeHtml(who)}</b> ` +
+    `(${escapeHtml(c.difficulty)} difficulty) — the exact same season they played: same roster, ` +
+    `same market, same schedule. Beat their record.` +
+    (saved ? '<br><b>⚠️ Starting this challenge replaces your current saved season.</b>' : '');
+  // lock the pickers to the challenge settings
+  $('#mode-row').style.display = 'none';
+  $('#difficulty-row').style.display = 'none';
+  $$('.field-label').forEach(l => {
+    if (l.textContent.startsWith('League') || l.textContent.startsWith('Difficulty')) l.style.display = 'none';
+  });
+  $('#fictional-setup').classList.toggle('hidden', c.mode !== 'fictional');
+  $('#nba-setup').classList.add('hidden');
+  $('#start-btn').textContent = 'Accept Challenge';
+}
 
 function enterGame() {
   $('#start-screen').classList.add('hidden');
@@ -110,33 +166,258 @@ function enterGame() {
   renderAll();
 }
 
-/* ================= actions ================= */
+/* ================= toasts, confetti, tweens ================= */
 
-function onPlayGame() {
+function toast(msg, cls) {
+  if (!msg) return;
+  const el = document.createElement('div');
+  el.className = 'toast' + (cls ? ' ' + cls : '');
+  el.textContent = msg;
+  $('#toast-stack').appendChild(el);
+  setTimeout(() => el.classList.add('fade'), 3400);
+  setTimeout(() => el.remove(), 3900);
+}
+
+function drainObjEvents() {
+  if (!S || !S.objEvents || !S.objEvents.length) return;
+  for (const id of S.objEvents) {
+    const o = OBJECTIVES.find(o => o.id === id);
+    if (o) toast(`🎯 Objective complete: ${o.name} · +${fmtMoney(o.reward)} sponsor bonus`, 'gold');
+  }
+  confetti(30);
+  S.objEvents = [];
+  saveGame();
+}
+
+function confetti(n) {
+  const root = $('#confetti-root');
+  const colors = ['#f5842b', '#0ca30c', '#3987e5', '#fab219', '#e66767'];
+  for (let i = 0; i < n; i++) {
+    const c = document.createElement('div');
+    c.className = 'confetti';
+    c.style.left = Math.random() * 100 + 'vw';
+    c.style.background = colors[Math.floor(Math.random() * colors.length)];
+    c.style.animationDuration = 1.6 + Math.random() * 1.6 + 's';
+    c.style.animationDelay = Math.random() * 0.4 + 's';
+    root.appendChild(c);
+    setTimeout(() => c.remove(), 3800);
+  }
+}
+
+// animate a numeric text change (money HUD, scoreboard)
+function tweenText(el, from, to, fmt, ms) {
+  if (from === to) { el.textContent = fmt(to); return; }
+  const t0 = performance.now();
+  const step = now => {
+    const k = Math.min(1, (now - t0) / (ms || 500));
+    const eased = 1 - Math.pow(1 - k, 3);
+    el.textContent = fmt(Math.round(from + (to - from) * eased));
+    if (k < 1) requestAnimationFrame(step);
+  };
+  requestAnimationFrame(step);
+}
+
+const sleep = ms => new Promise(res => {
+  const t0 = performance.now();
+  const tick = () => (window.__skipAnim || performance.now() - t0 >= ms) ? res() : requestAnimationFrame(tick);
+  tick();
+});
+
+/* ================= live game ================= */
+
+async function onPlayGame() {
+  if (animating || !S || S.over || S.day >= CFG.SEASON_GAMES) return;
+  animating = true;
+  window.__skipAnim = false;
   const res = playGameDay();
-  if (!res) return;
-  const f = res.fin;
-  $('#result-headline').textContent = res.win
-    ? (res.upset ? 'UPSET WIN! 🔥' : 'Victory! 🏀')
-    : 'Tough loss';
-  $('#result-score').innerHTML =
-    `<span style="color:${res.win ? 'var(--good)' : 'var(--series-2)'}">${res.us}</span>` +
-    ` – ${res.them}`;
+  if (!res) { animating = false; return; }
+  lastResult = res;
 
-  let html = `<p>${res.home ? 'vs' : '@'} <b>${escapeHtml(res.opp)}</b>` +
-    (f.attendance != null ? ` · ${fmtInt(f.attendance)} fans (${Math.round(f.attendance / CFG.ARENA_CAPACITY * 100)}% full)` : ' · road game') + `</p>`;
-  for (const line of f.lines) {
+  // reset modal
+  $('#result-headline').textContent = '🏀 Live from the arena';
+  $('#sb-us-name').textContent = S.teamName;
+  $('#sb-them-name').textContent = res.opp;
+  $('#sb-us-score').textContent = '0';
+  $('#sb-them-score').textContent = '0';
+  $('#sb-us-score').classList.remove('lead');
+  $('#sb-them-score').classList.remove('lead');
+  $('#sb-quarter').textContent = res.home ? 'Q1 · HOME' : 'Q1 · AWAY';
+  $('#quarter-row').innerHTML = '';
+  $('#pbp-feed').innerHTML = '';
+  $('#result-details').classList.add('hidden');
+  $('#result-close').classList.add('hidden');
+  $('#result-share').classList.add('hidden');
+  $('#result-skip').classList.remove('hidden');
+  $('#result-modal').classList.remove('hidden');
+  $('#fab-play').classList.add('hidden');
+
+  const stars = S.roster.filter(p => p.injury === 0).sort((a, b) => b.ovr - a.ovr).slice(0, 5);
+  let cumUs = 0, cumThem = 0;
+  for (let q = 0; q < 4; q++) {
+    $('#sb-quarter').textContent = `Q${q + 1}`;
+    const [qUs, qThem] = res.quarters[q];
+    // a couple of play-by-play beats per quarter
+    for (let b = 0; b < 2; b++) {
+      if (window.__skipAnim) break;
+      const ours = Math.random() < 0.6;
+      const line = ours
+        ? PBP_LINES[Math.floor(Math.random() * PBP_LINES.length)]
+            .replace('{p}', stars.length ? stars[Math.floor(Math.random() * stars.length)].name : S.teamName)
+        : PBP_OPP[Math.floor(Math.random() * PBP_OPP.length)].replace('{o}', res.opp);
+      pbpLine(line, ours && Math.random() < 0.35);
+      await sleep(650);
+    }
+    tweenText($('#sb-us-score'), cumUs, cumUs + qUs, String, 600);
+    tweenText($('#sb-them-score'), cumThem, cumThem + qThem, String, 600);
+    cumUs += qUs; cumThem += qThem;
+    $('#quarter-row').innerHTML += `<span>Q${q + 1} <b>${qUs}–${qThem}</b></span>`;
+    await sleep(750);
+  }
+
+  // final state
+  window.__skipAnim = false;
+  $('#sb-us-score').textContent = res.us;
+  $('#sb-them-score').textContent = res.them;
+  $('#sb-quarter').textContent = 'FINAL';
+  $('#quarter-row').innerHTML = res.quarters.map((q, i) => `<span>Q${i + 1} <b>${q[0]}–${q[1]}</b></span>`).join('');
+  (res.win ? $('#sb-us-score') : $('#sb-them-score')).classList.add('lead');
+  $('#result-headline').textContent = res.win
+    ? (res.upset ? '🔥 UPSET WIN!' : '🏀 Victory!')
+    : 'Tough loss';
+  if (res.win) confetti(res.upset ? 80 : 40);
+
+  let html = '';
+  if (S.streakW >= 2) html += `<p style="color:var(--accent);font-weight:700">⚡ ${S.streakW}-game win streak</p>`;
+  if (res.streakInfo && res.streakInfo.bonus) {
+    html += `<div class="event-line">🔥 Day-${res.streakInfo.n} play streak — sponsor bonus +${fmtMoney(res.streakInfo.bonus)}</div>`;
+  }
+  html += `<p>${res.home ? 'vs' : '@'} <b>${escapeHtml(res.opp)}</b>` +
+    (res.fin.attendance != null ? ` · ${fmtInt(res.fin.attendance)} fans (${Math.round(res.fin.attendance / CFG.ARENA_CAPACITY * 100)}% full)` : ' · road game') + `</p>`;
+  for (const line of res.fin.lines) {
     html += `<div class="fin-line"><span>${escapeHtml(line.label)}</span>` +
       `<span class="amt ${line.amt >= 0 ? 'pos' : 'neg'}">${line.amt >= 0 ? '+' : ''}${fmtMoney(line.amt)}</span></div>`;
   }
-  const net = f.revenue - f.expenses;
+  const net = res.fin.revenue - res.fin.expenses;
   html += `<div class="fin-line total"><span>Game-day net</span>` +
     `<span class="amt ${net >= 0 ? 'pos' : 'neg'}">${net >= 0 ? '+' : ''}${fmtMoney(net)}</span></div>`;
   for (const e of res.events) html += `<div class="event-line">⚡ ${escapeHtml(e)}</div>`;
   $('#result-details').innerHTML = html;
-  $('#result-modal').classList.remove('hidden');
+  $('#result-details').classList.remove('hidden');
+  $('#result-skip').classList.add('hidden');
+  $('#result-close').classList.remove('hidden');
+  $('#result-share').classList.remove('hidden');
+
+  animating = false;
+  drainObjEvents();
   renderAll();
 }
+
+function pbpLine(text, big) {
+  const el = document.createElement('div');
+  el.className = 'pbp-line' + (big ? ' big' : '');
+  el.textContent = (big ? '🔥 ' : '· ') + text;
+  const feed = $('#pbp-feed');
+  feed.prepend(el);
+  while (feed.children.length > 4) feed.lastChild.remove();
+}
+
+/* ================= sharing ================= */
+
+function resultEmojiGrid(limit) {
+  const res = limit ? S.results.slice(-limit) : S.results;
+  return res.map(r => (r.win ? '🟩' : '🟥')).join('');
+}
+
+function challengeUrl() {
+  return location.href.split('#')[0] + '#c=' + challengeCode();
+}
+
+function buildProgressShare() {
+  const you = S.league.find(t => t.you);
+  return `🏀 Courtside Capital — ${S.teamName}\n` +
+    `${you.w}–${you.l} after ${S.day}/${CFG.SEASON_GAMES} games · 💰 franchise value ${fmtMoney(netWorth())}\n` +
+    `${resultEmojiGrid()}\n` +
+    `Think you can do better? Play my exact season:\n${challengeUrl()}`;
+}
+
+function buildSeasonShare() {
+  const sum = seasonSummary();
+  const champ = sum.rank === 1 ? '🏆 CHAMPIONS · ' : '';
+  return `🏀 Courtside Capital — ${S.teamName}\n` +
+    `${champ}Finished #${sum.rank} of ${S.league.length} · ${sum.wins}–${sum.losses} · Grade ${sum.grade}\n` +
+    `💰 Franchise value ${sum.growth >= 0 ? '+' : ''}${(sum.growth * 100).toFixed(0)}%\n` +
+    `${resultEmojiGrid()}\n` +
+    `Beat my season — same roster, same market, same schedule:\n${challengeUrl()}`;
+}
+
+function buildChallengeShare() {
+  return `⚔️ I challenge you to run ${S.teamName} in Courtside Capital.\n` +
+    `Same roster, same market, same schedule — beat my record.\n${challengeUrl()}`;
+}
+
+async function shareText(text) {
+  try {
+    if (navigator.share) {
+      await navigator.share({ text });
+      return;
+    }
+  } catch (e) { /* user cancelled the share sheet — fall through to clipboard */ }
+  try {
+    await navigator.clipboard.writeText(text);
+    toast('📋 Copied to clipboard — paste it anywhere');
+  } catch (e) {
+    prompt('Copy your share text:', text);
+  }
+}
+
+/* ================= coach tour ================= */
+
+const TOUR_STEPS = [
+  { sel: '#next-game-card',  text: 'Your next game. Strength and win probability update with every roster move you make.' },
+  { sel: '#pricing-card',    text: 'Set ticket prices here. Fans have a reference price — drag the slider and watch projected revenue respond. Find the sweet spot.' },
+  { sel: '#objectives-card', text: 'Your to-do list. Each objective teaches one system and pays a real cash bonus when you complete it.' },
+  { sel: '.tab[data-tab="market"]', text: 'The trade market. Player values move every game day — buy low, sell high, and fund your empire.' },
+  { sel: '#play-btn',        text: 'When you\'re ready: tip-off. Good luck, owner. 🏀' },
+];
+let tourStep = -1;
+
+function maybeStartTour() {
+  try { if (localStorage.getItem(TOUR_KEY)) return; } catch (e) {}
+  tourStep = -1;
+  $('#tour-overlay').classList.remove('hidden');
+  $('#tour-next').onclick = nextTourStep;
+  $('#tour-skip').onclick = endTour;
+  nextTourStep();
+}
+
+function nextTourStep() {
+  clearTourSpotlight();
+  tourStep += 1;
+  if (tourStep >= TOUR_STEPS.length) return endTour();
+  const step = TOUR_STEPS[tourStep];
+  const el = $(step.sel);
+  if (!el) return nextTourStep();
+  el.classList.add('tour-spotlight');
+  el.scrollIntoView({ block: 'center', behavior: 'instant' });
+  $('#tour-text').textContent = step.text;
+  $('#tour-next').textContent = tourStep === TOUR_STEPS.length - 1 ? 'Let\'s go! 🏀' : 'Next ▸';
+  const r = el.getBoundingClientRect();
+  const tip = $('#tour-tip');
+  tip.style.left = Math.max(12, Math.min(window.innerWidth - 320, r.left)) + 'px';
+  tip.style.top = (r.bottom + 12 + 300 > window.innerHeight ? Math.max(12, r.top - 130) : r.bottom + 12) + 'px';
+}
+
+function clearTourSpotlight() {
+  $$('.tour-spotlight').forEach(el => el.classList.remove('tour-spotlight'));
+}
+
+function endTour() {
+  clearTourSpotlight();
+  $('#tour-overlay').classList.add('hidden');
+  try { localStorage.setItem(TOUR_KEY, '1'); } catch (e) {}
+}
+
+/* ================= season end ================= */
 
 function showSeasonEnd() {
   const sum = seasonSummary();
@@ -149,19 +430,18 @@ function showSeasonEnd() {
   } else {
     const champ = sum.rank === 1;
     $('#season-headline').textContent = champ ? '🏆 League Champions!' : 'Season complete';
+    if (champ) confetti(160);
     $('#season-summary').innerHTML =
       `<div class="grade">${sum.grade}</div>` +
-      `<div class="fin-line"><span>Final record</span><b>${sum.wins}–${sum.losses} (#${sum.rank} of 8)</b></div>` +
+      `<div class="fin-line"><span>Final record</span><b>${sum.wins}–${sum.losses} (#${sum.rank} of ${S.league.length})</b></div>` +
       `<div class="fin-line"><span>Starting franchise value</span><b>${fmtMoney(sum.startWorth)}</b></div>` +
       `<div class="fin-line"><span>Final franchise value</span><b>${fmtMoney(sum.worth)}</b></div>` +
       `<div class="fin-line"><span>Value growth</span><b style="color:${sum.growth >= 0 ? 'var(--good)' : 'var(--series-2)'}">${(sum.growth * 100).toFixed(0)}%</b></div>` +
-      (champ ? '<p>Banner raised. Dynasty next?</p>' : '<p>The board expects a title <i>and</i> a return on capital. Run it back.</p>');
+      `<div class="fin-line"><span>Objectives completed</span><b>${Object.keys(S.obj).length}/${OBJECTIVES.length}</b></div>` +
+      (champ ? '<p>Banner raised. Share the trophy — then defend it.</p>'
+             : '<p>The board expects a title <i>and</i> a return on capital. Run it back — or dare a friend to do better.</p>');
   }
   $('#season-modal').classList.remove('hidden');
-}
-
-function toast(msg) {
-  if (msg) { $('#ticker').textContent = msg; }
 }
 
 /* ================= rendering ================= */
@@ -169,6 +449,7 @@ function toast(msg) {
 function renderAll() {
   if (!S) return;
   renderHud();
+  renderSeasonStrip();
   renderTicker();
   renderOffice();
   renderRoster();
@@ -176,25 +457,65 @@ function renderAll() {
   renderTech();
   renderFinance();
   renderLeague();
+  renderFab();
 }
+
+let prevCash = null, prevWorth = null;
 
 function renderHud() {
   const you = S.league.find(t => t.you);
-  $('#hud-team').textContent = S.teamName;
+  $('#hud-team').textContent = S.teamName + (S.challenge ? ' ⚔️' : '');
   $('#hud-record').textContent = S.day >= CFG.SEASON_GAMES
     ? `${you.w}–${you.l} · season over`
     : `${you.w}–${you.l} · Game ${S.day + 1} of ${CFG.SEASON_GAMES}`;
+
   const cashEl = $('#hud-cash');
-  cashEl.textContent = fmtMoney(S.cash);
+  if (prevCash !== null && prevCash !== S.cash) {
+    tweenText(cashEl, prevCash, S.cash, fmtMoney);
+    cashEl.classList.remove('bump-up', 'bump-down');
+    void cashEl.offsetWidth;   // restart the bump animation
+    cashEl.classList.add(S.cash > prevCash ? 'bump-up' : 'bump-down');
+  } else {
+    cashEl.textContent = fmtMoney(S.cash);
+  }
+  prevCash = S.cash;
   cashEl.classList.toggle('neg', S.cash < 0);
+
   $('#hud-hype').textContent = `${Math.round(S.hype)} / 100`;
   $('#hud-payroll').textContent = fmtMoney(payrollPerGame());
-  $('#hud-networth').textContent = fmtMoney(netWorth());
+
+  const worthEl = $('#hud-networth');
+  const worth = netWorth();
+  if (prevWorth !== null && prevWorth !== worth) tweenText(worthEl, prevWorth, worth, fmtMoney);
+  else worthEl.textContent = fmtMoney(worth);
+  prevWorth = worth;
+
+  const streak = currentStreak();
+  $('#hud-streak').textContent = streak >= 2 ? `🔥 ${streak}d` : '—';
+  $('#hud-streak-wrap').style.display = streak >= 2 ? '' : 'none';
+}
+
+function renderSeasonStrip() {
+  const dots = [];
+  for (let i = 0; i < CFG.SEASON_GAMES; i++) {
+    const r = S.results[i];
+    const cls = r ? (r.win ? 'w' : 'l') : (i === S.day && !S.over ? 'next' : '');
+    const label = r ? `Game ${i + 1}: ${r.win ? 'W' : 'L'} ${r.us}–${r.them} ${r.home ? 'vs' : '@'} ${r.opp}`
+                    : `Game ${i + 1}`;
+    dots.push(`<div class="strip-dot ${cls}" title="${escapeHtml(label)}"></div>`);
+  }
+  $('#season-strip').innerHTML = dots.join('');
 }
 
 function renderTicker() {
   const items = S.news && S.news.length ? S.news : ['Quiet day around the league.'];
   $('#ticker').textContent = items.join('  ···  ');
+}
+
+function renderFab() {
+  const show = currentTab !== 'office' && !S.over && S.day < CFG.SEASON_GAMES &&
+    $('#result-modal').classList.contains('hidden');
+  $('#fab-play').classList.toggle('hidden', !show);
 }
 
 function renderOffice() {
@@ -216,7 +537,23 @@ function renderOffice() {
       <div class="winprob-label">Win probability: ${Math.round(m.pWin * 100)}%</div>`;
   }
   renderPricing();
+  renderObjectives();
   renderAdvisor();
+}
+
+function renderObjectives() {
+  const doneCount = Object.keys(S.obj).length;
+  $('#obj-progress').textContent = `${doneCount}/${OBJECTIVES.length} · each pays a sponsor bonus`;
+  // open objectives first, completed sink to the bottom
+  const ordered = [...OBJECTIVES].sort((a, b) => (S.obj[a.id] !== undefined) - (S.obj[b.id] !== undefined));
+  $('#objectives-list').innerHTML = ordered.map(o => {
+    const done = S.obj[o.id] !== undefined;
+    return `<div class="obj-row${done ? ' done' : ''}">
+      <span class="obj-icon">${o.icon}</span>
+      <span class="obj-body"><span class="obj-name">${escapeHtml(o.name)}</span><br><span class="obj-desc">${escapeHtml(o.desc)}</span></span>
+      <span class="obj-reward">+${fmtMoney(o.reward)}</span>
+    </div>`;
+  }).join('');
 }
 
 function renderPricing() {

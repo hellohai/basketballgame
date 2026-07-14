@@ -97,6 +97,44 @@ const TECH_TREE = [
   },
 ];
 
+/* Season objectives — the guided path through the game's systems.
+   Rewards are paid as sponsor bonuses so they reinforce the economy loop. */
+const OBJECTIVES = [
+  { id: 'price',   icon: '🎟️', name: 'Price the house',    desc: 'Set your ticket price (drag the slider)',       reward: 500_000 },
+  { id: 'win1',    icon: '🏀', name: 'First blood',         desc: 'Win a game',                                    reward: 750_000 },
+  { id: 'sign',    icon: '✍️', name: 'Deal maker',          desc: 'Sign a player from the trade market',           reward: 750_000 },
+  { id: 'tech1',   icon: '🔬', name: 'Early adopter',       desc: 'Buy any technology upgrade',                    reward: 1_000_000 },
+  { id: 'hype60',  icon: '🔥', name: 'Hot ticket',          desc: 'Reach 60 fan hype',                             reward: 1_000_000 },
+  { id: 'sellout', icon: '🏟️', name: 'Sold out',            desc: 'Fill the arena to 99%+ on a home night',        reward: 1_000_000 },
+  { id: 'flip',    icon: '📈', name: 'Buy low, sell high',  desc: 'Sell a player for more than you paid',          reward: 1_500_000 },
+  { id: 'streak3', icon: '⚡', name: 'Heater',              desc: 'Win 3 games in a row',                          reward: 2_000_000 },
+  { id: 'rich',    icon: '💰', name: 'Money machine',       desc: 'Grow franchise value 25% above where you started', reward: 2_000_000 },
+  { id: 'techmax', icon: '🚀', name: 'Silicon franchise',   desc: 'Max out any technology track',                  reward: 2_500_000 },
+];
+
+/* Play-by-play flavor for the live game animation. {p} = one of your players. */
+const PBP_LINES = [
+  '{p} splashes a deep three!',
+  '{p} attacks the rim — and one!',
+  'Steal and a breakaway slam by {p}!',
+  '{p} drains the stepback jumper',
+  'No-look dime from {p}',
+  '{p} swats it into the third row',
+  'Coast-to-coast finish by {p}',
+  'Offensive board and putback — {p}',
+  '{p} from wayyy downtown 🎯',
+  'Crossover, hesitation, floater... {p} counts it',
+];
+const PBP_OPP = [
+  '{o} answers at the other end',
+  '{o} hits from mid-range',
+  'Tough bucket inside by {o}',
+  '{o} converts in transition',
+];
+
+const STREAK_KEY = 'courtside-capital-streak';
+const STREAK_BONUS_PER_DAY = 250_000;   // × consecutive days, capped at 7
+
 /* ---------- helpers ---------- */
 
 // Mulberry32 seeded PRNG so a season can be reproduced from its seed.
