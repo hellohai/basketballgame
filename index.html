@@ -36,6 +36,11 @@
       <select id="nba-team-select"></select>
       <p class="data-note" id="nba-data-note"></p>
     </div>
+    <label class="field-label">Pace</label>
+    <div class="difficulty-row" id="pace-row">
+      <button class="diff-btn selected" data-pace="quick">🕹️ Quick Season<span>12 games · smart pricing on</span></button>
+      <button class="diff-btn" data-pace="full">🧠 Full GM<span>24 games · you run everything</span></button>
+    </div>
     <label class="field-label">Difficulty <span class="hint">(sets starting capital)</span></label>
     <div class="difficulty-row" id="difficulty-row">
       <button class="diff-btn" data-diff="easy">Rookie<span>$40M</span></button>
@@ -70,12 +75,12 @@
   <div id="ticker-wrap"><div id="ticker">Welcome to the league.</div></div>
 
   <nav id="tabs">
-    <button class="tab selected" data-tab="office">Front Office</button>
-    <button class="tab" data-tab="roster">Roster</button>
-    <button class="tab" data-tab="market">Trade Market</button>
-    <button class="tab" data-tab="tech">Tech Lab</button>
-    <button class="tab" data-tab="finance">Finances</button>
-    <button class="tab" data-tab="league">League</button>
+    <button class="tab selected" data-tab="office"><span class="tab-icon">🏟️</span><span class="tab-label">Front Office</span></button>
+    <button class="tab" data-tab="roster"><span class="tab-icon">👥</span><span class="tab-label">Roster</span><span class="tab-badge hidden" id="badge-roster"></span></button>
+    <button class="tab" data-tab="market"><span class="tab-icon">📈</span><span class="tab-label">Market</span><span class="tab-badge hidden" id="badge-market"></span></button>
+    <button class="tab" data-tab="tech"><span class="tab-icon">🔬</span><span class="tab-label">Tech Lab</span></button>
+    <button class="tab" data-tab="finance"><span class="tab-icon">💰</span><span class="tab-label">Finances</span></button>
+    <button class="tab" data-tab="league"><span class="tab-icon">🏆</span><span class="tab-label">League</span></button>
   </nav>
 
   <main>
@@ -89,6 +94,7 @@
         </div>
         <div class="card" id="pricing-card">
           <h2 class="card-title">Ticket pricing <span class="hint">— demand is price-elastic</span></h2>
+          <label class="auto-price-row"><input type="checkbox" id="auto-price-toggle"> 🤖 Smart pricing — your CFO sets the revenue-maximizing price each game</label>
           <div class="price-row">
             <input type="range" id="price-slider" min="10" max="200" step="1" value="45">
             <div class="price-readout">$<span id="price-value">45</span></div>
@@ -102,6 +108,7 @@
         </div>
         <div class="card" id="advisor-card">
           <h2 class="card-title">Front-office briefing</h2>
+          <div id="suggestion-slot"></div>
           <ul id="advisor-list" class="advisor-list"></ul>
         </div>
       </div>
@@ -120,6 +127,24 @@
       <div class="card">
         <h2 class="card-title">Trade market <span class="hint">— prices move every game day. Buy low, sell high.</span></h2>
         <p class="econ-note" id="market-note"></p>
+        <div class="market-toolbar">
+          <span class="roster-chip" id="market-roster-chip"></span>
+          <div class="pos-filter" id="market-pos-filter">
+            <button data-pos="ALL" class="selected">All</button>
+            <button data-pos="PG">PG</button>
+            <button data-pos="SG">SG</button>
+            <button data-pos="SF">SF</button>
+            <button data-pos="PF">PF</button>
+            <button data-pos="C">C</button>
+          </div>
+          <select id="market-sort">
+            <option value="value">Sort: most valuable</option>
+            <option value="cheap">Sort: cheapest</option>
+            <option value="young">Sort: youngest</option>
+            <option value="movers">Sort: today's movers</option>
+            <option value="ovr" id="sort-ovr-option" hidden>Sort: highest rated</option>
+          </select>
+        </div>
         <div id="market-list" class="player-grid"></div>
       </div>
     </section>
@@ -180,7 +205,9 @@
   </main>
 
   <footer id="footer">
-    <span>Courtside Capital · a basketball × economics × technology game</span>
+    <span>Courtside Capital · a basketball × economics × technology game
+      <span id="gp-indicator" class="hidden" title="Controller connected — LB/RB tabs · ▲▼ focus · A select · B back · LT/RT price">🎮</span>
+    </span>
     <button id="reset-btn" class="btn btn-ghost btn-small">Restart season</button>
   </footer>
 </div>
@@ -239,5 +266,6 @@
 <script src="js/engine.js"></script>
 <script src="js/charts.js"></script>
 <script src="js/ui.js"></script>
+<script src="js/gamepad.js"></script>
 </body>
 </html>

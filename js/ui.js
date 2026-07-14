@@ -5,10 +5,14 @@ const $$ = sel => [...document.querySelectorAll(sel)];
 
 let selectedDiff = 'normal';
 let selectedMode = 'fictional';
+let selectedPace = 'quick';
 let pendingChallenge = null;
 let currentTab = 'office';
 let animating = false;
 let lastResult = null;
+let marketPos = 'ALL';
+let marketSort = 'value';
+let currentSuggestion = null;
 
 const TOUR_KEY = 'courtside-capital-tour-done';
 
@@ -42,22 +46,43 @@ document.addEventListener('DOMContentLoaded', () => {
     $$('#difficulty-row .diff-btn').forEach(b => b.classList.toggle('selected', b === btn));
   });
 
+  $('#pace-row').addEventListener('click', ev => {
+    const btn = ev.target.closest('.diff-btn');
+    if (!btn) return;
+    selectedPace = btn.dataset.pace;
+    $$('#pace-row .diff-btn').forEach(b => b.classList.toggle('selected', b === btn));
+  });
+
   $('#start-btn').addEventListener('click', () => {
     clearSave();
     if (pendingChallenge) {
       const c = pendingChallenge;
       const name = c.mode === 'fictional'
         ? ($('#team-name-input').value.trim() || 'Bay City Circuits') : null;
-      newGame(name, c.difficulty, { mode: c.mode, teamIdx: c.teamIdx, seed: c.seed, challenge: true });
+      newGame(name, c.difficulty, { mode: c.mode, teamIdx: c.teamIdx, seed: c.seed, quick: c.quick, challenge: true });
       history.replaceState(null, '', location.pathname + location.search);
     } else if (selectedMode === 'nba') {
-      newGame(null, selectedDiff, { mode: 'nba', teamIdx: +$('#nba-team-select').value });
+      newGame(null, selectedDiff, { mode: 'nba', teamIdx: +$('#nba-team-select').value, quick: selectedPace === 'quick' });
     } else {
       const name = $('#team-name-input').value.trim() || 'Bay City Circuits';
-      newGame(name, selectedDiff, { mode: 'fictional' });
+      newGame(name, selectedDiff, { mode: 'fictional', quick: selectedPace === 'quick' });
     }
     enterGame();
     maybeStartTour();
+  });
+
+  // smart pricing toggle
+  $('#auto-price-toggle').addEventListener('change', () => {
+    S.autoPrice = $('#auto-price-toggle').checked;
+    if (S.autoPrice) {
+      S.ticketPrice = optimalTicketPrice();
+      $('#price-slider').value = S.ticketPrice;
+      toast('🤖 Smart pricing on — your CFO handles ticket prices.');
+    } else {
+      toast('Manual pricing — the slider is yours.');
+    }
+    saveGame();
+    renderPricing();
   });
 
   // tabs
@@ -106,6 +131,28 @@ document.addEventListener('DOMContentLoaded', () => {
     if (btn) { const r = buyTech(btn.dataset.tech); toast(r.msg, r.ok ? '' : 'gold'); afterAction(); }
   });
 
+  // market filters
+  $('#market-pos-filter').addEventListener('click', ev => {
+    const btn = ev.target.closest('button[data-pos]');
+    if (!btn) return;
+    marketPos = btn.dataset.pos;
+    $$('#market-pos-filter button').forEach(b => b.classList.toggle('selected', b === btn));
+    renderMarket();
+  });
+  $('#market-sort').addEventListener('change', () => {
+    marketSort = $('#market-sort').value;
+    renderMarket();
+  });
+
+  // advisor one-tap suggestion
+  $('#advisor-card').addEventListener('click', ev => {
+    if (!ev.target.closest('#suggestion-apply') || !currentSuggestion) return;
+    const r = applySuggestion(currentSuggestion);
+    toast(r.msg, r.ok ? '' : 'gold');
+    if (currentSuggestion.act === 'price') $('#price-slider').value = S.ticketPrice;
+    afterAction();
+  });
+
   $('#reset-btn').addEventListener('click', () => {
     if (confirm('Restart the season? Your current save will be erased.')) {
       clearSave();
@@ -151,8 +198,9 @@ function showChallengeStart(saved) {
   // lock the pickers to the challenge settings
   $('#mode-row').style.display = 'none';
   $('#difficulty-row').style.display = 'none';
+  $('#pace-row').style.display = 'none';
   $$('.field-label').forEach(l => {
-    if (l.textContent.startsWith('League') || l.textContent.startsWith('Difficulty')) l.style.display = 'none';
+    if (/^(League|Difficulty|Pace)/.test(l.textContent)) l.style.display = 'none';
   });
   $('#fictional-setup').classList.toggle('hidden', c.mode !== 'fictional');
   $('#nba-setup').classList.add('hidden');
@@ -226,7 +274,7 @@ const sleep = ms => new Promise(res => {
 /* ================= live game ================= */
 
 async function onPlayGame() {
-  if (animating || !S || S.over || S.day >= CFG.SEASON_GAMES) return;
+  if (animating || !S || gameIsDone()) return;
   animating = true;
   window.__skipAnim = false;
   const res = playGameDay();
@@ -234,7 +282,9 @@ async function onPlayGame() {
   lastResult = res;
 
   // reset modal
-  $('#result-headline').textContent = '🏀 Live from the arena';
+  $('#result-headline').textContent = res.playoff
+    ? `🏆 ${res.playoff.toUpperCase()} — LIVE`
+    : '🏀 Live from the arena';
   $('#sb-us-name').textContent = S.teamName;
   $('#sb-them-name').textContent = res.opp;
   $('#sb-us-score').textContent = '0';
@@ -281,10 +331,14 @@ async function onPlayGame() {
   $('#sb-quarter').textContent = 'FINAL';
   $('#quarter-row').innerHTML = res.quarters.map((q, i) => `<span>Q${i + 1} <b>${q[0]}–${q[1]}</b></span>`).join('');
   (res.win ? $('#sb-us-score') : $('#sb-them-score')).classList.add('lead');
-  $('#result-headline').textContent = res.win
-    ? (res.upset ? '🔥 UPSET WIN!' : '🏀 Victory!')
-    : 'Tough loss';
-  if (res.win) confetti(res.upset ? 80 : 40);
+  const champion = S.over === 'champion';
+  $('#result-headline').textContent = champion
+    ? '🏆 LEAGUE CHAMPIONS!'
+    : res.playoff
+      ? (res.win ? `🏆 ${res.playoff} — WON!` : `${res.playoff} — eliminated`)
+      : res.win ? (res.upset ? '🔥 UPSET WIN!' : '🏀 Victory!') : 'Tough loss';
+  if (champion) confetti(220);
+  else if (res.win) confetti(res.upset ? 80 : 40);
 
   let html = '';
   if (S.streakW >= 2) html += `<p style="color:var(--accent);font-weight:700">⚡ ${S.streakW}-game win streak</p>`;
@@ -335,14 +389,14 @@ function challengeUrl() {
 function buildProgressShare() {
   const you = S.league.find(t => t.you);
   return `🏀 Courtside Capital — ${S.teamName}\n` +
-    `${you.w}–${you.l} after ${S.day}/${CFG.SEASON_GAMES} games · 💰 franchise value ${fmtMoney(netWorth())}\n` +
+    `${you.w}–${you.l} after ${S.day}/${seasonLen()} games · 💰 franchise value ${fmtMoney(netWorth())}\n` +
     `${resultEmojiGrid()}\n` +
     `Think you can do better? Play my exact season:\n${challengeUrl()}`;
 }
 
 function buildSeasonShare() {
   const sum = seasonSummary();
-  const champ = sum.rank === 1 ? '🏆 CHAMPIONS · ' : '';
+  const champ = sum.champion ? '🏆 CHAMPIONS · ' : '';
   return `🏀 Courtside Capital — ${S.teamName}\n` +
     `${champ}Finished #${sum.rank} of ${S.league.length} · ${sum.wins}–${sum.losses} · Grade ${sum.grade}\n` +
     `💰 Franchise value ${sum.growth >= 0 ? '+' : ''}${(sum.growth * 100).toFixed(0)}%\n` +
@@ -374,7 +428,7 @@ async function shareText(text) {
 
 const TOUR_STEPS = [
   { sel: '#next-game-card',  text: 'Your next game. Strength and win probability update with every roster move you make.' },
-  { sel: '#pricing-card',    text: 'Set ticket prices here. Fans have a reference price — drag the slider and watch projected revenue respond. Find the sweet spot.' },
+  { sel: '#pricing-card',    text: 'Ticket pricing. Fans have a reference price — set yours against the demand curve. In Quick Season your CFO handles it; untick smart pricing anytime to take over.' },
   { sel: '#objectives-card', text: 'Your to-do list. Each objective teaches one system and pays a real cash bonus when you complete it.' },
   { sel: '.tab[data-tab="market"]', text: 'The trade market. Player values move every game day — buy low, sell high, and fund your empire.' },
   { sel: '#play-btn',        text: 'When you\'re ready: tip-off. Good luck, owner. 🏀' },
@@ -428,11 +482,17 @@ function showSeasonEnd() {
       `Great rosters mean nothing if the balance sheet collapses.</p>` +
       `<div class="grade">F</div>`;
   } else {
-    const champ = sum.rank === 1;
+    const champ = sum.champion;
     $('#season-headline').textContent = champ ? '🏆 League Champions!' : 'Season complete';
     if (champ) confetti(160);
+    const playoffLine = champ
+      ? 'Won the Championship'
+      : sum.madePlayoffs
+        ? `Made the playoffs · ${escapeHtml(sum.champName || '')} won the title`
+        : `Missed the playoffs (top 4) · ${escapeHtml(sum.champName || '')} won the title`;
     $('#season-summary').innerHTML =
       `<div class="grade">${sum.grade}</div>` +
+      `<div class="fin-line"><span>Playoffs</span><b>${playoffLine}</b></div>` +
       `<div class="fin-line"><span>Final record</span><b>${sum.wins}–${sum.losses} (#${sum.rank} of ${S.league.length})</b></div>` +
       `<div class="fin-line"><span>Starting franchise value</span><b>${fmtMoney(sum.startWorth)}</b></div>` +
       `<div class="fin-line"><span>Final franchise value</span><b>${fmtMoney(sum.worth)}</b></div>` +
@@ -451,6 +511,7 @@ function renderAll() {
   renderHud();
   renderSeasonStrip();
   renderTicker();
+  renderNavBadges();
   renderOffice();
   renderRoster();
   renderMarket();
@@ -460,14 +521,31 @@ function renderAll() {
   renderFab();
 }
 
+function gameIsDone() {
+  return !!S.over || (S.day >= seasonLen() && S.phase !== 'playoffs');
+}
+
+function renderNavBadges() {
+  const injured = S.roster.filter(p => p.injury > 0).length;
+  const rosterBadge = $('#badge-roster');
+  rosterBadge.classList.toggle('hidden', injured === 0);
+  rosterBadge.textContent = injured ? `${injured} INJ` : '';
+  const deals = S.tech.analytics >= 3 ? S.market.filter(isUndervalued).length : 0;
+  const marketBadge = $('#badge-market');
+  marketBadge.classList.toggle('hidden', deals === 0);
+  marketBadge.textContent = deals ? `${deals} 💡` : '';
+}
+
 let prevCash = null, prevWorth = null;
 
 function renderHud() {
   const you = S.league.find(t => t.you);
   $('#hud-team').textContent = S.teamName + (S.challenge ? ' ⚔️' : '');
-  $('#hud-record').textContent = S.day >= CFG.SEASON_GAMES
-    ? `${you.w}–${you.l} · season over`
-    : `${you.w}–${you.l} · Game ${S.day + 1} of ${CFG.SEASON_GAMES}`;
+  $('#hud-record').textContent = S.phase === 'playoffs' && !S.over
+    ? `${you.w}–${you.l} · 🏆 PLAYOFFS: ${S.playoff.stage === 'final' ? 'Championship' : 'Semifinal'}`
+    : gameIsDone()
+      ? `${you.w}–${you.l} · season over`
+      : `${you.w}–${you.l} · Game ${S.day + 1} of ${seasonLen()}`;
 
   const cashEl = $('#hud-cash');
   if (prevCash !== null && prevCash !== S.cash) {
@@ -496,12 +574,15 @@ function renderHud() {
 }
 
 function renderSeasonStrip() {
+  const total = Math.max(seasonLen(), S.results.length + (S.phase === 'playoffs' && !S.over ? 1 : 0));
   const dots = [];
-  for (let i = 0; i < CFG.SEASON_GAMES; i++) {
+  for (let i = 0; i < total; i++) {
     const r = S.results[i];
-    const cls = r ? (r.win ? 'w' : 'l') : (i === S.day && !S.over ? 'next' : '');
-    const label = r ? `Game ${i + 1}: ${r.win ? 'W' : 'L'} ${r.us}–${r.them} ${r.home ? 'vs' : '@'} ${r.opp}`
-                    : `Game ${i + 1}`;
+    const po = r ? !!r.playoff : (i >= seasonLen());
+    const cls = (r ? (r.win ? 'w' : 'l') : (i === S.day && !S.over ? 'next' : '')) + (po ? ' po' : '');
+    const label = r
+      ? `${r.playoff ? r.playoff : 'Game ' + (i + 1)}: ${r.win ? 'W' : 'L'} ${r.us}–${r.them} ${r.home ? 'vs' : '@'} ${r.opp}`
+      : (po ? 'Playoff game' : `Game ${i + 1}`);
     dots.push(`<div class="strip-dot ${cls}" title="${escapeHtml(label)}"></div>`);
   }
   $('#season-strip').innerHTML = dots.join('');
@@ -513,28 +594,45 @@ function renderTicker() {
 }
 
 function renderFab() {
-  const show = currentTab !== 'office' && !S.over && S.day < CFG.SEASON_GAMES &&
+  const show = currentTab !== 'office' && !gameIsDone() &&
     $('#result-modal').classList.contains('hidden');
   $('#fab-play').classList.toggle('hidden', !show);
 }
 
+// next opponent for either phase, shaped like nextMatchup()
+function upcomingGame() {
+  if (S.phase === 'playoffs') {
+    const po = S.playoff;
+    const opp = S.league.find(t => t.name === (po.stage === 'final' ? po.finalOpp : po.myOpp));
+    const home = po.mySeed <= 2;
+    const strUs = teamStrength(home);
+    return { opp, home, strUs, strThem: opp.str, pWin: winProbability(strUs, opp.str),
+             round: po.stage === 'final' ? 'CHAMPIONSHIP' : 'PLAYOFF SEMIFINAL' };
+  }
+  return nextMatchup();
+}
+
 function renderOffice() {
-  const done = S.day >= CFG.SEASON_GAMES || S.over;
+  const done = gameIsDone();
   $('#play-btn').disabled = !!done;
   if (done) {
     $('#matchup').innerHTML = '<p class="matchup-meta">Season complete.</p>';
     $('#play-btn').textContent = 'Season over';
   } else {
-    const m = nextMatchup();
+    const m = upcomingGame();
     $('#matchup').innerHTML =
+      (m.round ? `<div class="playoff-banner">🏆 ${m.round}</div>` : '') +
       `<div class="matchup-teams">
         <div class="matchup-team"><div class="t-name">${escapeHtml(S.teamName)}</div><div class="t-str">strength ${m.strUs}</div></div>
         <div class="matchup-vs">${m.home ? 'vs' : '@'}</div>
         <div class="matchup-team"><div class="t-name">${escapeHtml(m.opp.name)}</div><div class="t-str">strength ${m.strThem}</div></div>
       </div>
-      <div class="matchup-meta">${m.home ? 'Home game — gate revenue is yours' : 'Road game — TV money only'}</div>
+      <div class="matchup-meta">${m.home
+        ? (m.round ? 'Home playoff game — premium gate revenue' : 'Home game — gate revenue is yours')
+        : 'Road game — TV money only'}</div>
       <div class="winprob-bar"><div class="winprob-fill" style="width:${Math.round(m.pWin * 100)}%"></div></div>
       <div class="winprob-label">Win probability: ${Math.round(m.pWin * 100)}%</div>`;
+    $('#play-btn').textContent = m.round ? 'Play Playoff Game ▸' : 'Play Game ▸';
   }
   renderPricing();
   renderObjectives();
@@ -557,6 +655,12 @@ function renderObjectives() {
 }
 
 function renderPricing() {
+  $('#auto-price-toggle').checked = !!S.autoPrice;
+  $('.price-row').classList.toggle('dimmed', !!S.autoPrice);
+  if (S.autoPrice) {
+    S.ticketPrice = optimalTicketPrice();
+    $('#price-slider').value = S.ticketPrice;
+  }
   $('#price-value').textContent = S.ticketPrice;
   const d = projectDemand(S.ticketPrice);
   const pct = Math.round(d.attendance / CFG.ARENA_CAPACITY * 100);
@@ -565,15 +669,22 @@ function renderPricing() {
      <div class="demand-stat"><span class="d-label">Gate revenue</span><span class="d-value">${fmtMoney(d.gate)}</span></div>
      <div class="demand-stat"><span class="d-label">+ Concessions</span><span class="d-value">${fmtMoney(d.concessions)}</span></div>
      <div class="demand-stat"><span class="d-label">Fans' reference price</span><span class="d-value">$${d.ref}</span></div>`;
-  const note = S.ticketPrice > d.ref * 1.6
-    ? 'Way above what fans think is fair — demand collapses at this price (elasticity bites).'
-    : S.ticketPrice < d.ref * 0.8
-      ? 'Below the market-clearing price — the arena sells out but you leave gate money on the table.'
-      : 'Near the revenue-maximizing zone. Winning raises the reference price fans will pay.';
+  const note = S.autoPrice
+    ? 'Your CFO reprices every game as hype moves. Untick smart pricing to play the demand curve yourself.'
+    : S.ticketPrice > d.ref * 1.6
+      ? 'Way above what fans think is fair — demand collapses at this price (elasticity bites).'
+      : S.ticketPrice < d.ref * 0.8
+        ? 'Below the market-clearing price — the arena sells out but you leave gate money on the table.'
+        : 'Near the revenue-maximizing zone. Winning raises the reference price fans will pay.';
   $('#econ-note').textContent = note;
 }
 
 function renderAdvisor() {
+  currentSuggestion = computeSuggestion();
+  const sugHtml = currentSuggestion
+    ? `<div class="suggestion-box"><span>💡 ${escapeHtml(currentSuggestion.text)}</span>` +
+      `<button id="suggestion-apply" class="btn btn-primary btn-small">⚡ Do it</button></div>`
+    : '';
   const tips = [];
   const healthy = S.roster.filter(p => p.injury === 0).length;
   if (healthy < 6) tips.push(`Only ${healthy} healthy players — sign help on the trade market before tip-off.`);
@@ -592,6 +703,7 @@ function renderAdvisor() {
   const young = S.roster.filter(p => p.age <= 24 && p.pot - p.ovr >= 6).length;
   if (young && S.tech.training === 0) tips.push(`${young} young player${young > 1 ? 's have' : ' has'} untapped potential — a Training Center converts that into wins and resale value.`);
   if (!tips.length) tips.push('All systems steady. Watch the market for mispriced talent.');
+  $('#suggestion-slot').innerHTML = sugHtml;
   $('#advisor-list').innerHTML = tips.map(t => `<li>${escapeHtml(t)}</li>`).join('');
 }
 
@@ -609,9 +721,16 @@ function playerCard(p, mode) {
   if (p.form > 1.07) tags.push('<span class="p-tag hot">HOT</span>');
   if (flagDeal) tags.push('<span class="p-tag deal">💡 UNDERVALUED</span>');
 
-  const action = mode === 'roster'
-    ? `<button class="btn btn-sell" data-sell="${p.id}">Sell · ${fmtMoney(p.value)}</button>`
-    : `<button class="btn btn-buy" data-buy="${p.id}">Sign · ${fmtMoney(Math.round(p.value * (1 + buyFee())))}</button>`;
+  let action;
+  if (mode === 'roster') {
+    const atMin = S.roster.length <= CFG.ROSTER_MIN;
+    action = `<button class="btn btn-sell" data-sell="${p.id}" ${atMin ? `disabled title="League minimum is ${CFG.ROSTER_MIN} players — sign someone before selling"` : ''}>Sell · ${fmtMoney(p.value)}</button>`;
+  } else {
+    const cost = Math.round(p.value * (1 + buyFee()));
+    const full = S.roster.length >= CFG.ROSTER_MAX;
+    const broke = S.cash < cost;
+    action = `<button class="btn btn-buy" data-buy="${p.id}" ${full ? `disabled title="Roster is full (${CFG.ROSTER_MAX} max) — sell someone first"` : broke ? 'disabled title="Not enough cash"' : ''}>Sign · ${fmtMoney(cost)}</button>`;
+  }
 
   return `<div class="player-card${p.injury > 0 ? ' injured' : ''}">
     <div class="p-top">
@@ -633,16 +752,36 @@ function playerCard(p, mode) {
 
 function renderRoster() {
   const sorted = [...S.roster].sort((a, b) => b.ovr - a.ovr);
-  $('#roster-count').textContent = `${S.roster.length} players (min ${CFG.ROSTER_MIN}, max ${CFG.ROSTER_MAX}) · payroll ${fmtMoney(payrollPerGame())}/game`;
+  $('#roster-count').textContent =
+    `${S.roster.length} of ${CFG.ROSTER_MAX} roster spots filled · league minimum ${CFG.ROSTER_MIN} · payroll ${fmtMoney(payrollPerGame())}/game`;
   $('#roster-list').innerHTML = sorted.map(p => playerCard(p, 'roster')).join('');
+}
+
+const MARKET_SORTS = {
+  value:  (a, b) => b.value - a.value,
+  cheap:  (a, b) => a.value - b.value,
+  young:  (a, b) => a.age - b.age,
+  movers: (a, b) => marketDelta(b) - marketDelta(a),
+  ovr:    (a, b) => b.ovr - a.ovr,
+};
+function marketDelta(p) {
+  const h = p.hist || [];
+  return h.length > 1 ? Math.abs(h[h.length - 1] - h[h.length - 2]) / h[h.length - 2] : 0;
 }
 
 function renderMarket() {
   $('#market-note').textContent = S.tech.analytics === 0
     ? 'Scouting is fuzzy without an Analytics Lab: ratings show as ranges and potential is hidden. Values drift daily — news moves them sharply.'
     : `Agent fee on signings: ${Math.round(buyFee() * 100)}%. Values drift daily; news moves them sharply. Selling returns full market value.`;
-  const sorted = [...S.market].sort((a, b) => b.value - a.value);
-  $('#market-list').innerHTML = sorted.map(p => playerCard(p, 'market')).join('');
+  $('#market-roster-chip').innerHTML =
+    `Roster <b>${S.roster.length}/${CFG.ROSTER_MAX}</b> · Cash <b>${fmtMoney(S.cash)}</b>`;
+  $('#sort-ovr-option').hidden = S.tech.analytics === 0;   // no sorting on hidden info
+  if (marketSort === 'ovr' && S.tech.analytics === 0) marketSort = 'value';
+  const pool = S.market.filter(p => marketPos === 'ALL' || p.pos === marketPos);
+  const sorted = [...pool].sort(MARKET_SORTS[marketSort] || MARKET_SORTS.value);
+  $('#market-list').innerHTML = sorted.length
+    ? sorted.map(p => playerCard(p, 'market')).join('')
+    : '<p class="econ-note">No players at this position right now — the pool refreshes every game day.</p>';
 }
 
 function renderTech() {

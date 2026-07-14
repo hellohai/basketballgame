@@ -1,11 +1,13 @@
 /* Courtside Capital — static data & shared helpers */
 
 const CFG = {
-  SEASON_GAMES: 24,
+  SEASON_GAMES: 24,   // Full GM pace
+  QUICK_GAMES: 12,    // Quick Season pace
+  SALARY_GAMES: 24,   // salaries are always spread over a full-length season
   ARENA_CAPACITY: 18000,
   ROSTER_MIN: 8,
   ROSTER_MAX: 12,
-  MARKET_SIZE: 10,
+  MARKET_SIZE: 24,
   PRICE_ELASTICITY: 1.3,   // attendance ∝ (refPrice/price)^ε above the reference price
   CONCESSION_PER_FAN: 9,
   ARENA_OPS_HOME: 400_000,

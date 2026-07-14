@@ -46,6 +46,10 @@ function newGame(teamName, difficulty, opts) {
     news: ['New ownership takes over ' + teamName + '. The league is watching.'],
     over: false,
     nextId: 1,
+    phase: 'regular',
+    playoff: null,
+    playoffSeeds: null,
+    champName: null,
     teamIdx: opts.mode === 'nba' ? opts.teamIdx : null,
     obj: {},           // completed objective ids → day completed
     objEvents: [],     // freshly completed objectives, drained by the UI for toasts
@@ -53,7 +57,9 @@ function newGame(teamName, difficulty, opts) {
     challenge: !!opts.challenge,   // season started from a friend's challenge link
   };
 
-  S.schedule = makeSchedule(S.league.length - 1);
+  S.seasonGames = opts.quick ? CFG.QUICK_GAMES : CFG.SEASON_GAMES;
+  S.autoPrice = !!opts.quick;   // Quick Season: the CFO prices tickets for you
+  S.schedule = makeSchedule(S.league.length - 1, S.seasonGames);
 
   if (opts.mode === 'nba') {
     // your roster = the real team's players; the market pool = everyone
@@ -110,10 +116,12 @@ function genMarketPlayer() {
   return genPlayer(55, 92, false);
 }
 
-function makeSchedule(rivalCount) {
-  // 24 games: home/away alternating-ish against the rivals in rotation
+function seasonLen() { return (S && S.seasonGames) || CFG.SEASON_GAMES; }
+
+function makeSchedule(rivalCount, games) {
+  // home/away alternating-ish against the rivals in rotation
   const sched = [];
-  for (let g = 0; g < CFG.SEASON_GAMES; g++) {
+  for (let g = 0; g < games; g++) {
     sched.push({ opp: g % rivalCount, home: g % 2 === 0 });
   }
   // shuffle opponents lightly so it's not a strict rotation
@@ -211,7 +219,7 @@ function projectDemand(price) {
 }
 
 function payrollPerGame() {
-  return Math.round(S.roster.reduce((s, p) => s + p.salary, 0) / CFG.SEASON_GAMES);
+  return Math.round(S.roster.reduce((s, p) => s + p.salary, 0) / CFG.SALARY_GAMES);
 }
 
 function techInvested() {
@@ -281,19 +289,22 @@ function currentStreak() {
 /* ================= challenge links ================= */
 
 function challengeCode() {
-  return ['1', S.mode, S.mode === 'nba' ? S.teamIdx : 'x', S.difficulty, S.seed.toString(36)].join('.');
+  return ['2', S.mode, S.mode === 'nba' ? S.teamIdx : 'x', S.difficulty,
+          S.seasonGames === CFG.QUICK_GAMES ? 'q' : 'f', S.seed.toString(36)].join('.');
 }
 
 function parseChallenge(hash) {
   const m = /c=([^&]+)/.exec(hash || '');
   if (!m) return null;
   const parts = m[1].split('.');
-  if (parts.length !== 5 || parts[0] !== '1') return null;
-  const [, mode, teamIdx, diff, seed36] = parts;
+  if (parts.length !== 6 || parts[0] !== '2') return null;
+  const [, mode, teamIdx, diff, pace, seed36] = parts;
   const seed = parseInt(seed36, 36);
-  if (!['fictional', 'nba'].includes(mode) || !CFG.START_CASH[diff] || !Number.isInteger(seed)) return null;
+  if (!['fictional', 'nba'].includes(mode) || !CFG.START_CASH[diff] ||
+      !['q', 'f'].includes(pace) || !Number.isInteger(seed)) return null;
   if (mode === 'nba' && !(NBA_DATA.teams[+teamIdx])) return null;
-  return { mode, teamIdx: mode === 'nba' ? +teamIdx : null, difficulty: diff, seed };
+  return { mode, teamIdx: mode === 'nba' ? +teamIdx : null, difficulty: diff,
+           quick: pace === 'q', seed };
 }
 
 /* ================= team strength & simulation ================= */
@@ -326,7 +337,10 @@ function nextMatchup() {
 }
 
 function playGameDay() {
-  if (S.over || S.day >= CFG.SEASON_GAMES) return null;
+  if (S.over) return null;
+  if (S.phase === 'playoffs') return playPlayoffDay();
+  if (S.day >= seasonLen()) return null;
+  if (S.autoPrice) { S.ticketPrice = optimalTicketPrice(); completeObjective('price'); }
   const dayNews = [];
   const m = nextMatchup();
   S.day += 1;
@@ -392,7 +406,62 @@ function playGameDay() {
   if (win) completeObjective('win1');
   const streakInfo = touchDailyStreak();
 
-  // --- injuries & recovery ---
+  const events = dailyUpkeep(dayNews, win);
+
+  // --- simulate the rest of the league (and report it on the wire) ---
+  you.streak = win ? (you.streak || 0) + 1 : 0;
+  m.opp.streak = win ? 0 : (m.opp.streak || 0) + 1;
+  const leagueWire = [];
+  const rivalCount = S.league.length - 1;
+  const idle = Array.from({ length: rivalCount }, (_, i) => i)
+    .filter(i => i !== S.schedule[S.day - 1].opp);
+  for (let i = idle.length - 1; i > 0; i--) {
+    const j = Math.floor(rng() * (i + 1));
+    [idle[i], idle[j]] = [idle[j], idle[i]];
+  }
+  for (let k = 0; k + 1 < idle.length; k += 2) {
+    const a = S.league[idle[k]], b = S.league[idle[k + 1]];
+    const pA = winProbability(a.str, b.str);
+    const [winner, loser] = rng() < pA ? [a, b] : [b, a];
+    winner.w++; loser.l++;
+    winner.streak = (winner.streak || 0) + 1;
+    loser.streak = 0;
+    if (leagueWire.length < 2) {
+      const ls = 95 + Math.round(rng() * 20);
+      const ws = ls + 2 + Math.round(rng() * 14);
+      leagueWire.push(`${winner.name} ${rng() < 0.3 ? 'edge' : 'beat'} ${loser.name} ${ws}–${ls}`);
+    }
+    if (winner.streak >= 3 && rng() < 0.6) {
+      leagueWire.push(`${winner.name} have won ${winner.streak} straight 🔥`);
+    }
+  }
+  for (const t of S.league) if (!t.you) t.str = clamp(t.str + (rng() - 0.5) * 1.2, 55, 92);
+  you.str = teamStrength(false);
+  const leader = standings()[0];
+  if (S.day >= 3 && rng() < 0.5) {
+    leagueWire.push(leader.you
+      ? `Your ${leader.name} lead the league at ${leader.w}–${leader.l} 👑`
+      : `${leader.name} sit atop the standings at ${leader.w}–${leader.l}`);
+  }
+
+  checkObjectives();
+  S.cashHistory.push(S.cash);
+
+  const result = {
+    day: S.day, opp: m.opp.name, home: m.home, us, them, win,
+    fin, events, upset, quarters, streakInfo,
+  };
+  S.results.push(result);
+  S.news = [...leagueWire, ...dayNews, ...events.slice(0, 2)].slice(0, 6);
+
+  if (S.cash < CFG.BANKRUPT_AT) S.over = 'bankrupt';
+  else if (S.day >= seasonLen()) endRegularSeason(result);
+  saveGame();
+  return result;
+}
+
+// injuries, development, and value drift shared by regular and playoff days
+function dailyUpkeep(dayNews, win) {
   const medF = [1, 0.67, 0.5, 0.3][S.tech.medicine];
   const recoveryBonus = [0, 0, 1, 2][S.tech.medicine];
   const events = [];
@@ -406,8 +475,6 @@ function playGameDay() {
       p.value = Math.round(p.value * 0.93);
     }
   }
-
-  // --- development (Training Center) ---
   const devChance = [0, 0.10, 0.18, 0.28][S.tech.training];
   for (const p of S.roster) {
     const eligible = S.tech.training >= 2 || p.age < 30;
@@ -417,42 +484,199 @@ function playGameDay() {
       events.push(`${p.name} improved to ${p.ovr} OVR (training).`);
     }
   }
-
-  // --- market & roster values move ---
   const rosterDrift = win ? 0.015 : -0.008;
   for (const p of S.roster) tickPlayerValue(p, rosterDrift);
   tickMarket(dayNews);
+  return events;
+}
 
-  // --- simulate the rest of the league ---
-  const rivalCount = S.league.length - 1;
-  const idle = Array.from({ length: rivalCount }, (_, i) => i)
-    .filter(i => i !== S.schedule[S.day - 1].opp);
-  for (let i = idle.length - 1; i > 0; i--) {
-    const j = Math.floor(rng() * (i + 1));
-    [idle[i], idle[j]] = [idle[j], idle[i]];
-  }
-  for (let k = 0; k + 1 < idle.length; k += 2) {
-    const a = S.league[idle[k]], b = S.league[idle[k + 1]];
-    const pA = winProbability(a.str, b.str);
-    if (rng() < pA) { a.w++; b.l++; } else { b.w++; a.l++; }
-  }
-  for (const t of S.league) if (!t.you) t.str = clamp(t.str + (rng() - 0.5) * 1.2, 55, 92);
-  you.str = teamStrength(false);
+/* ================= playoffs ================= */
 
+function teamByName(name) { return S.league.find(t => t.name === name); }
+
+// called when game 24 finishes: top 4 seeds enter a single-elimination bracket
+function endRegularSeason(result) {
+  const seeds = standings().slice(0, 4);
+  S.playoffSeeds = seeds.map(t => t.name);
+  const mySeed = seeds.findIndex(t => t.you);
+  if (mySeed >= 0) {
+    S.phase = 'playoffs';
+    S.playoff = {
+      stage: 'semi',
+      myOpp: seeds[mySeed === 0 ? 3 : mySeed === 3 ? 0 : mySeed === 1 ? 2 : 1].name,
+      mySeed: mySeed + 1,
+      otherPair: seeds.filter((t, i) => i !== mySeed && i !== (mySeed === 0 ? 3 : mySeed === 3 ? 0 : mySeed === 1 ? 2 : 1)).map(t => t.name),
+    };
+    result.events.push(`PLAYOFFS! You clinched the #${mySeed + 1} seed. Semifinal vs ${S.playoff.myOpp}.`);
+    S.hype = clamp(S.hype + 8, 5, 100);
+  } else {
+    // you missed the cut — the bracket plays out without you
+    const semi1 = simPlayoffGame(seeds[0], seeds[3]);
+    const semi2 = simPlayoffGame(seeds[1], seeds[2]);
+    const champ = simPlayoffGame(semi1, semi2);
+    S.champName = champ.name;
+    result.events.push(`You missed the playoffs (top 4 advance). ${champ.name} win the title.`);
+    S.over = 'season';
+  }
+}
+
+function simPlayoffGame(a, b) {
+  return rng() < winProbability(a.str, b.str) ? a : b;
+}
+
+function playPlayoffDay() {
+  const po = S.playoff;
+  if (S.autoPrice) S.ticketPrice = optimalTicketPrice();
+  const dayNews = [];
+  const isFinal = po.stage === 'final';
+  const opp = teamByName(isFinal ? po.finalOpp : po.myOpp);
+  const home = po.mySeed <= 2;   // top-2 seeds host their playoff games
+  const strUs = teamStrength(home);
+  const pWin = winProbability(strUs, opp.str);
+  S.day += 1;
+
+  const win = rng() < pWin;
+  const base = 96 + Math.round(rng() * 18);
+  const margin = 2 + Math.round(rng() * 12 + Math.abs(strUs - opp.str) * 0.4);
+  const us = win ? base + margin : base;
+  const them = win ? base : base + margin;
+  const quarters = [];
+  let remUs = us, remThem = them;
+  for (let q = 0; q < 4; q++) {
+    const left = 3 - q;
+    const qUs = left ? clamp(Math.round(us / 4 + (rng() - 0.5) * 10), 12, remUs - left * 12) : remUs;
+    const qThem = left ? clamp(Math.round(them / 4 + (rng() - 0.5) * 10), 12, remThem - left * 12) : remThem;
+    quarters.push([qUs, qThem]);
+    remUs -= qUs; remThem -= qThem;
+  }
+
+  // playoff economics: demand premium, same cost base
+  const fin = { day: S.day, revenue: 0, expenses: 0, lines: [] };
+  const addRev = (label, amt) => { amt = Math.round(amt); if (amt <= 0) return; fin.revenue += amt; fin.lines.push({ label, amt }); ledger(label, amt); };
+  const addExp = (label, amt) => { amt = Math.round(amt); if (amt <= 0) return; fin.expenses += amt; fin.lines.push({ label, amt: -amt }); ledger(label, -amt); };
+  const streaming = [0, 200_000, 450_000, 800_000][S.tech.platform];
+  if (home) {
+    const d = projectDemand(S.ticketPrice);
+    const att = Math.min(CFG.ARENA_CAPACITY, Math.round(d.attendance * 1.25));
+    fin.attendance = att;
+    addRev(`Playoff tickets (${fmtInt(att)} @ $${S.ticketPrice})`, att * S.ticketPrice);
+    addRev('Concessions', att * CFG.CONCESSION_PER_FAN);
+    addRev('Playoff merchandise', att * (3 + S.hype * 0.06));
+    addRev('Local sponsorships', S.hype * 12_000);
+    if (att >= CFG.ARENA_CAPACITY * 0.99) {
+      completeObjective('sellout');
+      if (S.tech.platform >= 3) addRev('Sellout bonus', 250_000);
+    }
+  } else {
+    addRev('Playoff away share', CFG.AWAY_GATE_SHARE * 2);
+  }
+  addRev('Playoff TV bonus', (S.mode === 'nba' ? CFG.NBA_TV_PER_GAME : CFG.NATIONAL_TV_PER_GAME) * 1.5);
+  if (streaming) addRev('Streaming platform', streaming);
+  addExp('Player payroll', payrollPerGame());
+  addExp('Staff & operations', CFG.STAFF_PER_GAME);
+  if (home) addExp('Arena operations', CFG.ARENA_OPS_HOME);
+  S.gamesFin.push({ day: S.day, revenue: fin.revenue, expenses: fin.expenses });
+
+  S.hype = clamp(S.hype + (win ? 10 : -6), 5, 100);
+  const events = dailyUpkeep(dayNews, win);
+  const roundName = isFinal ? 'Championship' : 'Semifinal';
+
+  if (isFinal) {
+    if (win) {
+      S.over = 'champion';
+      S.champName = S.teamName;
+      S.hype = 100;
+      events.unshift('🏆 CHAMPIONS! The banner is yours.');
+    } else {
+      S.over = 'season';
+      S.champName = opp.name;
+      events.unshift(`${opp.name} take the title. So close.`);
+    }
+  } else {
+    const [aName, bName] = po.otherPair;
+    const otherWinner = simPlayoffGame(teamByName(aName), teamByName(bName));
+    dayNews.push(`${otherWinner.name} advance to the final.`);
+    if (win) {
+      po.stage = 'final';
+      po.finalOpp = otherWinner.name;
+      events.unshift(`You're in the Championship! Next: ${otherWinner.name}.`);
+    } else {
+      const champ = simPlayoffGame(teamByName(po.myOpp), otherWinner);
+      S.champName = champ.name;
+      S.over = 'season';
+      events.unshift(`Eliminated in the semifinal. ${champ.name} go on to win it all.`);
+    }
+  }
+
+  const streakInfo = touchDailyStreak();
   checkObjectives();
   S.cashHistory.push(S.cash);
-
   const result = {
-    day: S.day, opp: m.opp.name, home: m.home, us, them, win,
-    fin, events, upset, quarters, streakInfo,
+    day: S.day, opp: opp.name, home, us, them, win,
+    fin, events, upset: win && opp.str > strUs, quarters, streakInfo,
+    playoff: roundName,
   };
   S.results.push(result);
-  S.news = dayNews.concat(events.slice(0, 2));
-
+  S.news = [...dayNews, ...events.slice(0, 3)].slice(0, 6);
   if (S.cash < CFG.BANKRUPT_AT) S.over = 'bankrupt';
-  else if (S.day >= CFG.SEASON_GAMES) S.over = 'season';
   saveGame();
   return result;
+}
+
+/* ================= advisor: one-tap suggested move ================= */
+
+function optimalTicketPrice() {
+  let best = 10, bestRev = 0;
+  for (let price = 10; price <= 200; price += 2) {
+    const d = projectDemand(price);
+    const rev = d.gate + d.concessions;
+    if (rev > bestRev) { bestRev = rev; best = price; }
+  }
+  return best;
+}
+
+// the single most valuable action right now, as {text, act, ...params} or null
+function computeSuggestion() {
+  if (!S || S.over) return null;
+  const healthy = S.roster.filter(p => p.injury === 0).length;
+  const affordable = S.market.filter(p => S.cash >= p.value * (1 + buyFee()))
+    .sort((a, b) => a.value - b.value);
+  if (healthy < 6 && affordable.length && S.roster.length < CFG.ROSTER_MAX) {
+    const p = affordable[0];
+    return { act: 'buy', id: p.id, text: `Only ${healthy} healthy players. Sign ${p.name} (${fmtMoney(p.value)}) so you can field a full rotation.` };
+  }
+  const opt = optimalTicketPrice();
+  if (!S.autoPrice && Math.abs(S.ticketPrice - opt) > opt * 0.18) {
+    return { act: 'price', price: opt, text: `Your $${S.ticketPrice} tickets are ${S.ticketPrice > opt ? 'choking demand' : 'underpriced'} — $${opt} maximizes gate revenue at current hype.` };
+  }
+  if (S.tech.analytics === 0 && S.cash >= TECH_TREE[0].costs[0] + 2_000_000) {
+    return { act: 'tech', id: 'analytics', text: 'You\'re trading blind. An Analytics Lab reveals true market ratings — information is edge.' };
+  }
+  if (S.tech.analytics >= 3 && S.roster.length < CFG.ROSTER_MAX) {
+    const deal = S.market.filter(p => isUndervalued(p) && S.cash >= p.value * (1 + buyFee()))
+      .sort((a, b) => b.ovr - a.ovr)[0];
+    if (deal) return { act: 'buy', id: deal.id, text: `Analytics flags ${deal.name} as undervalued (${fmtMoney(deal.value)} vs ~${fmtMoney(fairValue(deal))} fair). Buy the dip.` };
+  }
+  if (S.cash > 14_000_000) {
+    const next = TECH_TREE.map(t => ({ id: t.id, name: t.name, lvl: S.tech[t.id], cost: t.costs[S.tech[t.id]] }))
+      .filter(t => t.cost !== undefined && S.cash >= t.cost + 4_000_000)
+      .sort((a, b) => a.cost - b.cost)[0];
+    if (next) return { act: 'tech', id: next.id, text: `${fmtMoney(S.cash)} idle. ${next.name} level ${next.lvl + 1} (${fmtMoney(next.cost)}) compounds for the rest of the season.` };
+  }
+  return null;
+}
+
+function applySuggestion(sug) {
+  if (!sug) return { ok: false, msg: '' };
+  if (sug.act === 'price') {
+    S.ticketPrice = sug.price;
+    completeObjective('price');
+    saveGame();
+    return { ok: true, msg: `Ticket price set to $${sug.price}.` };
+  }
+  if (sug.act === 'buy') return buyPlayer(sug.id);
+  if (sug.act === 'tech') return buyTech(sug.id);
+  return { ok: false, msg: '' };
 }
 
 /* ================= transactions ================= */
@@ -522,10 +746,13 @@ function seasonSummary() {
   const worth = netWorth();
   const growth = (worth - startWorth) / startWorth;
   const n = S.league.length;
-  const score = (rank === 1 ? 3 : rank <= Math.ceil(n / 4) ? 2 : rank <= Math.ceil(n / 2) ? 1 : 0) +
+  const champion = S.over === 'champion';
+  const madePlayoffs = !!(S.playoffSeeds && S.playoffSeeds.includes(S.teamName));
+  const score = (champion ? 3 : madePlayoffs ? 2 : rank <= Math.ceil(n / 2) ? 1 : 0) +
                 (growth > 0.5 ? 3 : growth > 0.2 ? 2 : growth > 0 ? 1 : 0);
   const grade = score >= 6 ? 'S' : score >= 5 ? 'A' : score >= 4 ? 'B' : score >= 2 ? 'C' : 'D';
-  return { rank, wins: you.w, losses: you.l, worth, startWorth, growth, grade };
+  return { rank, wins: you.w, losses: you.l, worth, startWorth, growth, grade,
+           champion, madePlayoffs, champName: S.champName };
 }
 
 /* ================= persistence ================= */
@@ -545,6 +772,8 @@ function loadGame() {
     s.obj = s.obj || {};
     s.objEvents = s.objEvents || [];
     s.streakW = s.streakW || 0;
+    s.phase = s.phase || 'regular';
+    s.seasonGames = s.seasonGames || CFG.SEASON_GAMES;
     S = s;
     rng = makeRng((s.seed ^ (s.day * 2654435761)) >>> 0);
     return S;

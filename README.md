@@ -26,6 +26,22 @@ it back up.
   players from around the league. Picking a contender is easy mode; turning a rebuilding
   team into a champion is the real challenge.
 
+## Two paces
+
+- **🕹️ Quick Season** — 12 games, smart pricing on (your CFO auto-sets the
+  revenue-maximizing ticket price). Play, trade, and follow the one-tap suggested
+  moves — a season fits in a coffee break.
+- **🧠 Full GM** — 24 games and every lever is yours, including the demand curve.
+
+Both paces end with **playoffs**: top 4 seeds, single-elimination semifinal and
+championship, with premium playoff gate revenue.
+
+## Controller support 🎮
+
+Plug in any standard gamepad: **LB/RB** (or D-pad ◀▶) switch screens, **▲▼** move
+focus, **A** selects / plays / skips, **B** backs out, and **LT/RT** ride the
+ticket-price slider.
+
 ### Where the NBA data comes from
 
 `data/nba_data.js` ships with a bundled roster snapshot (see its `asOf` field). To pull
