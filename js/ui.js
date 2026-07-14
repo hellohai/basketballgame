@@ -4,11 +4,31 @@ const $ = sel => document.querySelector(sel);
 const $$ = sel => [...document.querySelectorAll(sel)];
 
 let selectedDiff = 'normal';
+let selectedMode = 'fictional';
 
 /* ================= boot ================= */
 
 document.addEventListener('DOMContentLoaded', () => {
-  // start screen
+  // start screen — league mode + NBA team picker
+  const sel = $('#nba-team-select');
+  sel.innerHTML = NBA_DATA.teams.map((t, i) => {
+    const top5 = [...t.players].map(p => p[3]).sort((a, b) => b - a).slice(0, 5);
+    const str = Math.round(top5.reduce((s, v) => s + v, 0) / top5.length);
+    return `<option value="${i}">${escapeHtml(t.name)} — strength ${str}</option>`;
+  }).join('');
+  $('#nba-data-note').textContent =
+    `Rosters as of ${NBA_DATA.asOf}. Ratings are game estimates, not official NBA data. ` +
+    `Weaker teams are the harder (and more rewarding) challenge.`;
+
+  $('#mode-row').addEventListener('click', ev => {
+    const btn = ev.target.closest('.diff-btn');
+    if (!btn) return;
+    selectedMode = btn.dataset.mode;
+    $$('#mode-row .diff-btn').forEach(b => b.classList.toggle('selected', b === btn));
+    $('#fictional-setup').classList.toggle('hidden', selectedMode === 'nba');
+    $('#nba-setup').classList.toggle('hidden', selectedMode !== 'nba');
+  });
+
   $('#difficulty-row').addEventListener('click', ev => {
     const btn = ev.target.closest('.diff-btn');
     if (!btn) return;
@@ -17,9 +37,13 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
   $('#start-btn').addEventListener('click', () => {
-    const name = $('#team-name-input').value.trim() || 'Bay City Circuits';
     clearSave();
-    newGame(name, selectedDiff);
+    if (selectedMode === 'nba') {
+      newGame(null, selectedDiff, { mode: 'nba', teamIdx: +$('#nba-team-select').value });
+    } else {
+      const name = $('#team-name-input').value.trim() || 'Bay City Circuits';
+      newGame(name, selectedDiff, { mode: 'fictional' });
+    }
     enterGame();
   });
 

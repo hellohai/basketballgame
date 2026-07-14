@@ -21,8 +21,20 @@
       market, and invest in technology — analytics, training science, sports medicine,
       and a digital fan platform — to out-think richer rivals.
     </p>
-    <label class="field-label" for="team-name-input">Name your franchise</label>
-    <input id="team-name-input" type="text" maxlength="24" value="Bay City Circuits" autocomplete="off">
+    <label class="field-label">League</label>
+    <div class="difficulty-row" id="mode-row">
+      <button class="diff-btn selected" data-mode="fictional">Fictional League<span>8 invented teams</span></button>
+      <button class="diff-btn" data-mode="nba">Real NBA<span>30 real teams</span></button>
+    </div>
+    <div id="fictional-setup">
+      <label class="field-label" for="team-name-input">Name your franchise</label>
+      <input id="team-name-input" type="text" maxlength="24" value="Bay City Circuits" autocomplete="off">
+    </div>
+    <div id="nba-setup" class="hidden">
+      <label class="field-label" for="nba-team-select">Choose your team</label>
+      <select id="nba-team-select"></select>
+      <p class="data-note" id="nba-data-note"></p>
+    </div>
     <label class="field-label">Difficulty <span class="hint">(sets starting capital)</span></label>
     <div class="difficulty-row" id="difficulty-row">
       <button class="diff-btn" data-diff="easy">Rookie<span>$40M</span></button>
@@ -185,6 +197,7 @@
   </div>
 </div>
 
+<script src="data/nba_data.js"></script>
 <script src="js/data.js"></script>
 <script src="js/engine.js"></script>
 <script src="js/charts.js"></script>

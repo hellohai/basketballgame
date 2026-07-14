@@ -11,6 +11,7 @@ const CFG = {
   ARENA_OPS_HOME: 400_000,
   STAFF_PER_GAME: 150_000,
   NATIONAL_TV_PER_GAME: 1_200_000,
+  NBA_TV_PER_GAME: 2_800_000,     // real-NBA mode: big national media deal offsets star payrolls
   AWAY_GATE_SHARE: 250_000,
   BUY_FEE: 0.10,           // agent fee on market purchases (Analytics Lab reduces it)
   SALARY_RATIO: 0.30,      // season salary as a share of market value at signing

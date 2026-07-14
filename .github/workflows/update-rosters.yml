@@ -1,0 +1,34 @@
+name: Refresh NBA rosters
+
+on:
+  schedule:
+    - cron: '0 9 * * 1'   # Mondays 09:00 UTC
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Fetch current rosters
+        run: node scripts/update-rosters.mjs
+
+      - name: Commit if changed
+        run: |
+          if git diff --quiet data/nba_data.js; then
+            echo "Rosters unchanged."
+            exit 0
+          fi
+          git config user.name "roster-bot"
+          git config user.email "actions@users.noreply.github.com"
+          git add data/nba_data.js
+          git commit -m "Refresh NBA rosters ($(date -u +%F))"
+          git push

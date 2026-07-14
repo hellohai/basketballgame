@@ -73,6 +73,14 @@ h2 { font-size: 1.05rem; margin: 0 0 0.6em; }
 }
 #team-name-input:focus { outline: 2px solid var(--accent); border-color: transparent; }
 
+#nba-team-select {
+  width: 100%; padding: 10px 12px;
+  background: var(--surface-2); color: var(--ink);
+  border: 1px solid var(--line); border-radius: 8px;
+  font-size: 1rem;
+}
+.data-note { color: var(--ink-3); font-size: 0.75rem; text-align: left; margin: 8px 0 0; }
+
 .difficulty-row { display: flex; gap: 8px; }
 .diff-btn {
   flex: 1; padding: 10px; cursor: pointer;

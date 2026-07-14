@@ -7,15 +7,26 @@ let rng = Math.random;
 
 /* ================= state creation ================= */
 
-function newGame(teamName, difficulty) {
+function newGame(teamName, difficulty, opts) {
+  opts = opts || { mode: 'fictional' };
   const seed = (Math.random() * 2 ** 31) | 0;
   rng = makeRng(seed);
 
-  const league = RIVAL_TEAMS.map(t => ({ name: t.name, str: t.str, w: 0, l: 0, you: false }));
+  let league, nbaTeam = null;
+  if (opts.mode === 'nba') {
+    nbaTeam = NBA_DATA.teams[opts.teamIdx];
+    teamName = nbaTeam.name;
+    league = NBA_DATA.teams
+      .filter((t, i) => i !== opts.teamIdx)
+      .map(t => ({ name: t.name, str: nbaTeamStrength(t), w: 0, l: 0, you: false }));
+  } else {
+    league = RIVAL_TEAMS.map(t => ({ name: t.name, str: t.str, w: 0, l: 0, you: false }));
+  }
   league.push({ name: teamName, str: 0, w: 0, l: 0, you: true });
 
   S = {
     seed,
+    mode: opts.mode,
     teamName,
     difficulty,
     cash: CFG.START_CASH[difficulty],
@@ -26,7 +37,8 @@ function newGame(teamName, difficulty) {
     market: [],
     tech: { analytics: 0, training: 0, medicine: 0, platform: 0 },
     league,
-    schedule: makeSchedule(),
+    nbaPool: [],
+    schedule: null,
     ledger: [],
     cashHistory: [],
     gamesFin: [],
@@ -36,8 +48,21 @@ function newGame(teamName, difficulty) {
     nextId: 1,
   };
 
-  for (let i = 0; i < 9; i++) S.roster.push(genPlayer(50, 70, true));
-  while (S.market.length < CFG.MARKET_SIZE) S.market.push(genPlayer(55, 92, false));
+  S.schedule = makeSchedule(S.league.length - 1);
+
+  if (opts.mode === 'nba') {
+    // your roster = the real team's players; the market pool = everyone
+    // outside each team's top 7 (the league's "trade block")
+    for (const arr of nbaTeam.players) S.roster.push(realToPlayer(arr, true));
+    NBA_DATA.teams.forEach((t, i) => {
+      if (i === opts.teamIdx) return;
+      for (const arr of [...t.players].sort((a, b) => b[3] - a[3]).slice(7)) S.nbaPool.push(arr);
+    });
+    while (S.market.length < CFG.MARKET_SIZE) S.market.push(genMarketPlayer());
+  } else {
+    for (let i = 0; i < 9; i++) S.roster.push(genPlayer(50, 70, true));
+    while (S.market.length < CFG.MARKET_SIZE) S.market.push(genPlayer(55, 92, false));
+  }
 
   S.cashHistory.push(S.cash);
   S.startWorth = netWorth();
@@ -46,11 +71,45 @@ function newGame(teamName, difficulty) {
   return S;
 }
 
-function makeSchedule() {
-  // 24 games: home/away alternating-ish against the 7 rivals in rotation
+// rough rival strength from its real roster: top-5 average + bench/coaching proxy
+function nbaTeamStrength(team) {
+  const top5 = [...team.players].map(p => p[3]).sort((a, b) => b - a).slice(0, 5);
+  return Math.round((top5.reduce((s, v) => s + v, 0) / top5.length + 3) * 10) / 10;
+}
+
+// convert a [name, pos, age, ovr] snapshot entry into a live game player
+function realToPlayer(arr, mine) {
+  const [name, pos, age, ovr] = arr;
+  const p = {
+    id: S.nextId++,
+    name, pos, age, ovr,
+    pot: clamp(ovr + Math.max(0, Math.round((27 - age) * 1.2)), ovr, 99),
+    form: 1 + (rng() - 0.5) * 0.1,
+    injury: 0,
+    mine: !!mine,
+    value: 0,
+    salary: 0,
+    hist: [],
+  };
+  p.value = Math.round(fairValue(p) * (0.9 + rng() * 0.2));
+  p.salary = Math.round(p.value * CFG.SALARY_RATIO);
+  p.hist = [p.value];
+  return p;
+}
+
+function genMarketPlayer() {
+  if (S.mode === 'nba' && S.nbaPool.length) {
+    const idx = Math.floor(rng() * S.nbaPool.length);
+    return realToPlayer(S.nbaPool.splice(idx, 1)[0], false);
+  }
+  return genPlayer(55, 92, false);
+}
+
+function makeSchedule(rivalCount) {
+  // 24 games: home/away alternating-ish against the rivals in rotation
   const sched = [];
   for (let g = 0; g < CFG.SEASON_GAMES; g++) {
-    sched.push({ opp: g % RIVAL_TEAMS.length, home: g % 2 === 0 });
+    sched.push({ opp: g % rivalCount, home: g % 2 === 0 });
   }
   // shuffle opponents lightly so it's not a strict rotation
   for (let i = sched.length - 1; i > 0; i--) {
@@ -119,9 +178,14 @@ function tickMarket(dayNews) {
   // rotate one player out, one in, sometimes — keeps the market fresh
   if (rng() < 0.30) {
     const idx = Math.floor(rng() * S.market.length);
-    S.market.splice(idx, 1);
+    const out = S.market.splice(idx, 1)[0];
+    if (S.mode === 'nba' && out) S.nbaPool.push([out.name, out.pos, out.age, out.ovr]);
   }
-  while (S.market.length < CFG.MARKET_SIZE) S.market.push(genPlayer(55, 92, false));
+  while (S.market.length < CFG.MARKET_SIZE) S.market.push(genMarketPlayer());
+  while (S.market.length > CFG.MARKET_SIZE) {   // players you sold can push it over
+    const out = S.market.splice(Math.floor(rng() * S.market.length), 1)[0];
+    if (S.mode === 'nba' && out) S.nbaPool.push([out.name, out.pos, out.age, out.ovr]);
+  }
 }
 
 /* ================= economics ================= */
@@ -234,7 +298,7 @@ function playGameDay() {
     addRev('Away gate share', CFG.AWAY_GATE_SHARE);
     addRev('Merchandise', S.hype * 3_000);
   }
-  addRev('National TV deal', CFG.NATIONAL_TV_PER_GAME);
+  addRev('National TV deal', S.mode === 'nba' ? CFG.NBA_TV_PER_GAME : CFG.NATIONAL_TV_PER_GAME);
   if (streaming) addRev('Streaming platform', streaming);
 
   addExp('Player payroll', payrollPerGame());
@@ -276,7 +340,9 @@ function playGameDay() {
   tickMarket(dayNews);
 
   // --- simulate the rest of the league ---
-  const idle = [0, 1, 2, 3, 4, 5, 6].filter(i => i !== S.schedule[S.day - 1].opp);
+  const rivalCount = S.league.length - 1;
+  const idle = Array.from({ length: rivalCount }, (_, i) => i)
+    .filter(i => i !== S.schedule[S.day - 1].opp);
   for (let i = idle.length - 1; i > 0; i--) {
     const j = Math.floor(rng() * (i + 1));
     [idle[i], idle[j]] = [idle[j], idle[i]];
@@ -286,7 +352,7 @@ function playGameDay() {
     const pA = winProbability(a.str, b.str);
     if (rng() < pA) { a.w++; b.l++; } else { b.w++; a.l++; }
   }
-  for (const t of S.league) if (!t.you) t.str = clamp(t.str + (rng() - 0.5) * 1.2, 55, 85);
+  for (const t of S.league) if (!t.you) t.str = clamp(t.str + (rng() - 0.5) * 1.2, 55, 92);
   you.str = teamStrength(false);
 
   const result = {
@@ -361,7 +427,8 @@ function seasonSummary() {
   const startWorth = S.startWorth || CFG.START_CASH[S.difficulty];
   const worth = netWorth();
   const growth = (worth - startWorth) / startWorth;
-  const score = (rank === 1 ? 3 : rank <= 3 ? 2 : rank <= 5 ? 1 : 0) +
+  const n = S.league.length;
+  const score = (rank === 1 ? 3 : rank <= Math.ceil(n / 4) ? 2 : rank <= Math.ceil(n / 2) ? 1 : 0) +
                 (growth > 0.5 ? 3 : growth > 0.2 ? 2 : growth > 0 ? 1 : 0);
   const grade = score >= 6 ? 'S' : score >= 5 ? 'A' : score >= 4 ? 'B' : score >= 2 ? 'C' : 'D';
   return { rank, wins: you.w, losses: you.l, worth, startWorth, growth, grade };
@@ -379,6 +446,8 @@ function loadGame() {
     if (!raw) return null;
     const s = JSON.parse(raw);
     if (!s || !Array.isArray(s.roster) || s.over) return null;
+    s.mode = s.mode || 'fictional';
+    s.nbaPool = s.nbaPool || [];
     S = s;
     rng = makeRng((s.seed ^ (s.day * 2654435761)) >>> 0);
     return S;
