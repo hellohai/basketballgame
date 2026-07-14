@@ -119,6 +119,27 @@ scripts/update-rosters.mjs roster refresh from ESPN's public API (Node 18+, no d
 
 Plain HTML/CSS/JS — no framework, no build, ~1,700 lines total.
 
+## Monetization foundation (off by default)
+
+The build ships with tasteful, opt-in hooks — nothing shows until you configure it
+in `js/data.js`:
+
+- **`SUPPORT.links`** — add your Ko-fi / Stripe Payment Link / GitHub Sponsors URLs
+  and they appear as buttons in the footer's *Support & themes* modal.
+- **Supporter codes** — sell or gift codes (e.g. via Gumroad or a Stripe payment
+  confirmation email); redeeming one unlocks the extra arena themes (Hardwood,
+  Neon). Codes are checked against djb2 hashes in `SUPPORT.codeHashes`; generate:
+  `node -e "let s=process.argv[1],h=5381;for(const c of s)h=(h*33^c.charCodeAt(0))>>>0;console.log(h.toString(36))" COURTSIDE-YOURCODE`
+- **`HOUSE_SPONSOR`** — one native, clearly-marked "This season presented by …"
+  line on the Front Office. Sell it like an indie-podcast sponsorship; set to
+  `null` (default) it renders nothing.
+
+**Legal note before charging money:** player names + stats in a free fan game sit
+on solid First-Amendment/fantasy-sports precedent, but *commercial* use around real
+NBA names raises right-of-publicity and trademark stakes. Safest paths: monetize
+around the **fictional league**, keep payments as *donations* rather than paywalls
+on NBA content, and talk to a lawyer before anything bigger.
+
 ## Ideas for future seasons
 
 - Multi-season careers with player aging and a draft

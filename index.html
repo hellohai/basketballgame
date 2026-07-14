@@ -12,7 +12,7 @@
 <!-- ============ START SCREEN ============ -->
 <div id="start-screen" class="overlay">
   <div class="overlay-card">
-    <div class="logo-mark">🏀</div>
+    <div class="logo-mark" data-icon="basketball" data-icon-size="52"></div>
     <h1>Courtside Capital</h1>
     <p class="tagline">Run the franchise. Beat the market. Win the ring.</p>
     <div id="challenge-banner" class="challenge-banner hidden"></div>
@@ -38,8 +38,8 @@
     </div>
     <label class="field-label">Pace</label>
     <div class="difficulty-row" id="pace-row">
-      <button class="diff-btn selected" data-pace="quick">🕹️ Quick Season<span>12 games · smart pricing on</span></button>
-      <button class="diff-btn" data-pace="full">🧠 Full GM<span>24 games · you run everything</span></button>
+      <button class="diff-btn selected" data-pace="quick">Quick Season<span>12 games · smart pricing on</span></button>
+      <button class="diff-btn" data-pace="full">Full GM<span>24 games · you run everything</span></button>
     </div>
     <label class="field-label">Difficulty <span class="hint">(sets starting capital)</span></label>
     <div class="difficulty-row" id="difficulty-row">
@@ -55,7 +55,7 @@
 <div id="app" class="hidden">
   <header id="topbar">
     <div class="brand">
-      <span class="brand-ball">🏀</span>
+      <span class="brand-ball" data-icon="basketball" data-icon-size="30"></span>
       <div>
         <div id="hud-team" class="brand-name">—</div>
         <div id="hud-record" class="brand-sub">0–0 · Game 1 of 24</div>
@@ -75,12 +75,12 @@
   <div id="ticker-wrap"><div id="ticker">Welcome to the league.</div></div>
 
   <nav id="tabs">
-    <button class="tab selected" data-tab="office"><span class="tab-icon">🏟️</span><span class="tab-label">Front Office</span></button>
-    <button class="tab" data-tab="roster"><span class="tab-icon">👥</span><span class="tab-label">Roster</span><span class="tab-badge hidden" id="badge-roster"></span></button>
-    <button class="tab" data-tab="market"><span class="tab-icon">📈</span><span class="tab-label">Market</span><span class="tab-badge hidden" id="badge-market"></span></button>
-    <button class="tab" data-tab="tech"><span class="tab-icon">🔬</span><span class="tab-label">Tech Lab</span></button>
-    <button class="tab" data-tab="finance"><span class="tab-icon">💰</span><span class="tab-label">Finances</span></button>
-    <button class="tab" data-tab="league"><span class="tab-icon">🏆</span><span class="tab-label">League</span></button>
+    <button class="tab selected" data-tab="office"><span class="tab-icon" data-icon="office"></span><span class="tab-label">Front Office</span></button>
+    <button class="tab" data-tab="roster"><span class="tab-icon" data-icon="roster"></span><span class="tab-label">Roster</span><span class="tab-badge hidden" id="badge-roster"></span></button>
+    <button class="tab" data-tab="market"><span class="tab-icon" data-icon="market"></span><span class="tab-label">Market</span><span class="tab-badge hidden" id="badge-market"></span></button>
+    <button class="tab" data-tab="tech"><span class="tab-icon" data-icon="tech"></span><span class="tab-label">Tech Lab</span></button>
+    <button class="tab" data-tab="finance"><span class="tab-icon" data-icon="finance"></span><span class="tab-label">Finances</span></button>
+    <button class="tab" data-tab="league"><span class="tab-icon" data-icon="league"></span><span class="tab-label">League</span></button>
   </nav>
 
   <main>
@@ -91,10 +91,11 @@
           <h2 class="card-title">Next game</h2>
           <div id="matchup"></div>
           <button id="play-btn" class="btn btn-primary btn-big">Play Game ▸</button>
+          <div id="sponsor-slot"></div>
         </div>
         <div class="card" id="pricing-card">
           <h2 class="card-title">Ticket pricing <span class="hint">— demand is price-elastic</span></h2>
-          <label class="auto-price-row"><input type="checkbox" id="auto-price-toggle"> 🤖 Smart pricing — your CFO sets the revenue-maximizing price each game</label>
+          <label class="auto-price-row"><input type="checkbox" id="auto-price-toggle"> Smart pricing — your CFO sets the revenue-maximizing price each game</label>
           <div class="price-row">
             <input type="range" id="price-slider" min="10" max="200" step="1" value="45">
             <div class="price-readout">$<span id="price-value">45</span></div>
@@ -206,8 +207,9 @@
 
   <footer id="footer">
     <span>Courtside Capital · a basketball × economics × technology game
-      <span id="gp-indicator" class="hidden" title="Controller connected — LB/RB tabs · ▲▼ focus · A select · B back · LT/RT price">🎮</span>
-      <button id="kb-indicator" class="btn btn-ghost btn-small" title="Keyboard shortcuts">⌨️ shortcuts</button>
+      <span id="gp-indicator" class="hidden" title="Controller connected — LB/RB tabs · ▲▼ focus · A select · B back · LT/RT price" data-icon="gamepad" data-icon-size="16"></span>
+      <button id="kb-indicator" class="btn btn-ghost btn-small" title="Keyboard shortcuts"><span data-icon="keyboard" data-icon-size="14"></span> Shortcuts</button>
+    <button id="support-btn" class="btn btn-ghost btn-small"><span data-icon="heart" data-icon-size="14"></span> Support &amp; themes</button>
     </span>
     <button id="reset-btn" class="btn btn-ghost btn-small">Restart season</button>
   </footer>
@@ -226,7 +228,7 @@
     <div id="pbp-feed" class="pbp-feed"></div>
     <div id="result-details" class="hidden"></div>
     <div class="modal-actions">
-      <button id="result-share" class="btn btn-ghost hidden">📤 Share</button>
+      <button id="result-share" class="btn btn-ghost hidden"><span data-icon="share" data-icon-size="15"></span> Share</button>
       <button id="result-skip" class="btn btn-ghost">Skip ▸▸</button>
       <button id="result-close" class="btn btn-primary hidden">Continue ▸</button>
     </div>
@@ -239,8 +241,8 @@
     <h1 id="season-headline"></h1>
     <div id="season-summary"></div>
     <div class="modal-actions">
-      <button id="season-share" class="btn btn-ghost">📤 Share season card</button>
-      <button id="season-challenge" class="btn btn-ghost">⚔️ Challenge a friend</button>
+      <button id="season-share" class="btn btn-ghost"><span data-icon="share" data-icon-size="15"></span> Share season card</button>
+      <button id="season-challenge" class="btn btn-ghost"><span data-icon="flag" data-icon-size="15"></span> Challenge a friend</button>
     </div>
     <button id="season-restart" class="btn btn-primary btn-big">Play another season</button>
   </div>
@@ -262,11 +264,32 @@
   </div>
 </div>
 
+
+<!-- ============ SUPPORT / THEMES ============ -->
+<div id="support-modal" class="overlay hidden">
+  <div class="overlay-card">
+    <h2>Support Courtside Capital</h2>
+    <p class="intro-copy">The game is free. If a season made your day better, you can fuel the next
+    one — and supporters unlock the extra arena themes below.</p>
+    <div id="support-links" class="support-links"></div>
+    <label class="field-label">Arena theme</label>
+    <div class="difficulty-row" id="theme-row"></div>
+    <label class="field-label" for="supporter-code">Supporter code</label>
+    <div class="redeem-row">
+      <input id="supporter-code" type="text" placeholder="COURTSIDE-XXXX" autocomplete="off">
+      <button id="redeem-btn" class="btn btn-primary">Redeem</button>
+    </div>
+    <button id="support-close" class="btn btn-ghost btn-big">Close</button>
+  </div>
+</div>
+
 <script src="data/nba_data.js"></script>
+<script src="js/icons.js"></script>
 <script src="js/data.js"></script>
 <script src="js/engine.js"></script>
 <script src="js/charts.js"></script>
 <script src="js/ui.js"></script>
 <script src="js/gamepad.js"></script>
+<script src="js/support.js"></script>
 </body>
 </html>

@@ -19,6 +19,8 @@ const TOUR_KEY = 'courtside-capital-tour-done';
 /* ================= boot ================= */
 
 document.addEventListener('DOMContentLoaded', () => {
+  injectIcons();
+
   // start screen — league mode + NBA team picker
   const sel = $('#nba-team-select');
   sel.innerHTML = NBA_DATA.teams.map((t, i) => {
@@ -230,7 +232,7 @@ function drainObjEvents() {
   if (!S || !S.objEvents || !S.objEvents.length) return;
   for (const id of S.objEvents) {
     const o = OBJECTIVES.find(o => o.id === id);
-    if (o) toast(`🎯 Objective complete: ${o.name} · +${fmtMoney(o.reward)} sponsor bonus`, 'gold');
+    if (o) toast(`Objective complete: ${o.name} · +${fmtMoney(o.reward)} sponsor bonus`, 'gold');
   }
   confetti(30);
   S.objEvents = [];
@@ -418,7 +420,7 @@ async function shareText(text) {
   } catch (e) { /* user cancelled the share sheet — fall through to clipboard */ }
   try {
     await navigator.clipboard.writeText(text);
-    toast('📋 Copied to clipboard — paste it anywhere');
+    toast('Copied to clipboard — paste it anywhere');
   } catch (e) {
     prompt('Copy your share text:', text);
   }
@@ -621,7 +623,7 @@ function renderOffice() {
   } else {
     const m = upcomingGame();
     $('#matchup').innerHTML =
-      (m.round ? `<div class="playoff-banner">🏆 ${m.round}</div>` : '') +
+      (m.round ? `<div class="playoff-banner">${icon('league', 14)} ${m.round}</div>` : '') +
       `<div class="matchup-teams">
         <div class="matchup-team"><div class="t-name">${escapeHtml(S.teamName)}</div><div class="t-str">strength ${m.strUs}</div></div>
         <div class="matchup-vs">${m.home ? 'vs' : '@'}</div>
@@ -634,6 +636,11 @@ function renderOffice() {
       <div class="winprob-label">Win probability: ${Math.round(m.pWin * 100)}%</div>`;
     $('#play-btn').textContent = m.round ? 'Play Playoff Game ▸' : 'Play Game ▸';
   }
+  const spon = typeof HOUSE_SPONSOR !== 'undefined' && HOUSE_SPONSOR;
+  $('#sponsor-slot').innerHTML = spon
+    ? `<a class="sponsor-line" href="${escapeHtml(spon.url || '#')}" target="_blank" rel="noopener sponsored">
+        This season presented by <b>${escapeHtml(spon.name)}</b>${spon.tagline ? ' — ' + escapeHtml(spon.tagline) : ''}</a>`
+    : '';
   renderPricing();
   renderObjectives();
   renderAdvisor();
@@ -647,7 +654,7 @@ function renderObjectives() {
   $('#objectives-list').innerHTML = ordered.map(o => {
     const done = S.obj[o.id] !== undefined;
     return `<div class="obj-row${done ? ' done' : ''}">
-      <span class="obj-icon">${o.icon}</span>
+      <span class="obj-icon">${icon(o.icon, 17)}</span>
       <span class="obj-body"><span class="obj-name">${escapeHtml(o.name)}</span><br><span class="obj-desc">${escapeHtml(o.desc)}</span></span>
       <span class="obj-reward">+${fmtMoney(o.reward)}</span>
     </div>`;
@@ -682,14 +689,14 @@ function renderPricing() {
 function renderAdvisor() {
   currentSuggestion = computeSuggestion();
   const sugHtml = currentSuggestion
-    ? `<div class="suggestion-box"><span>💡 ${escapeHtml(currentSuggestion.text)}</span>` +
+    ? `<div class="suggestion-box"><span>${escapeHtml(currentSuggestion.text)}</span>` +
       `<button id="suggestion-apply" class="btn btn-primary btn-small">⚡ Do it</button></div>`
     : '';
   const tips = [];
   const healthy = S.roster.filter(p => p.injury === 0).length;
   if (healthy < 6) tips.push(`Only ${healthy} healthy players — sign help on the trade market before tip-off.`);
   const deals = S.tech.analytics >= 3 ? S.market.filter(isUndervalued).length : 0;
-  if (deals) tips.push(`Analytics flags ${deals} undervalued player${deals > 1 ? 's' : ''} on the market right now. 💡`);
+  if (deals) tips.push(`Analytics flags ${deals} undervalued player${deals > 1 ? 's' : ''} on the market right now.`);
   if (S.tech.analytics === 0) tips.push('Without an Analytics Lab you only see rating *ranges* on the market — you are trading blind.');
   const pg = payrollPerGame();
   const lastFin = S.gamesFin[S.gamesFin.length - 1];
@@ -719,7 +726,7 @@ function playerCard(p, mode) {
   const tags = [];
   if (p.injury > 0) tags.push(`<span class="p-tag hurt">INJ ${p.injury}g</span>`);
   if (p.form > 1.07) tags.push('<span class="p-tag hot">HOT</span>');
-  if (flagDeal) tags.push('<span class="p-tag deal">💡 UNDERVALUED</span>');
+  if (flagDeal) tags.push('<span class="p-tag deal">VALUE PICK</span>');
 
   let action;
   if (mode === 'roster') {
@@ -797,7 +804,7 @@ function renderTech() {
       ? '<button class="btn" disabled>Max level</button>'
       : `<button class="btn btn-primary" data-tech="${t.id}" ${S.cash < t.costs[lvl] ? 'disabled' : ''}>Upgrade · ${fmtMoney(t.costs[lvl])}</button>`;
     return `<div class="tech-card">
-      <div class="tech-head"><span class="tech-name">${t.icon} ${escapeHtml(t.name)}</span><div class="tech-pips">${pips}</div></div>
+      <div class="tech-head"><span class="tech-name"><span class="tech-ic">${icon(t.icon, 18)}</span>${escapeHtml(t.name)}</span><div class="tech-pips">${pips}</div></div>
       <p class="tech-desc">${escapeHtml(t.desc)}</p>
       ${current}${next}${btn}
     </div>`;

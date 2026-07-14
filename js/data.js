@@ -58,17 +58,17 @@ const NEWS_BAD = [
 
 const TECH_TREE = [
   {
-    id: 'analytics', icon: '📊', name: 'Analytics Lab',
+    id: 'analytics', icon: 'chart', name: 'Analytics Lab',
     desc: 'Machine-learning scouting models. Reveals true player ratings on the market, cuts transaction fees, and optimizes game plans.',
     costs: [3_000_000, 6_000_000, 12_000_000],
     levels: [
       'Exact overall ratings visible on the trade market · +1 team strength',
       'Potential ratings revealed · agent fees halved · +2 team strength',
-      'Undervalued players flagged 💡 · +4 team strength',
+      'Undervalued players flagged · +4 team strength',
     ],
   },
   {
-    id: 'training', icon: '🏋️', name: 'Training Center',
+    id: 'training', icon: 'dumbbell', name: 'Training Center',
     desc: 'Biomechanics sensors and load-managed practice. Players develop toward their potential every game day.',
     costs: [2_500_000, 5_000_000, 10_000_000],
     levels: [
@@ -78,7 +78,7 @@ const TECH_TREE = [
     ],
   },
   {
-    id: 'medicine', icon: '🩺', name: 'Sports Medicine',
+    id: 'medicine', icon: 'heartpulse', name: 'Sports Medicine',
     desc: 'Recovery science, imaging, and injury-risk modeling. Fewer injuries, faster returns.',
     costs: [2_000_000, 4_000_000, 8_000_000],
     levels: [
@@ -88,7 +88,7 @@ const TECH_TREE = [
     ],
   },
   {
-    id: 'platform', icon: '📱', name: 'Digital Fan Platform',
+    id: 'platform', icon: 'phone', name: 'Digital Fan Platform',
     desc: 'Streaming, a fan app, and dynamic merch drops. Turns hype into recurring revenue and keeps it from decaying.',
     costs: [2_500_000, 5_000_000, 9_000_000],
     levels: [
@@ -102,16 +102,16 @@ const TECH_TREE = [
 /* Season objectives — the guided path through the game's systems.
    Rewards are paid as sponsor bonuses so they reinforce the economy loop. */
 const OBJECTIVES = [
-  { id: 'price',   icon: '🎟️', name: 'Price the house',    desc: 'Set your ticket price (drag the slider)',       reward: 500_000 },
-  { id: 'win1',    icon: '🏀', name: 'First blood',         desc: 'Win a game',                                    reward: 750_000 },
-  { id: 'sign',    icon: '✍️', name: 'Deal maker',          desc: 'Sign a player from the trade market',           reward: 750_000 },
-  { id: 'tech1',   icon: '🔬', name: 'Early adopter',       desc: 'Buy any technology upgrade',                    reward: 1_000_000 },
-  { id: 'hype60',  icon: '🔥', name: 'Hot ticket',          desc: 'Reach 60 fan hype',                             reward: 1_000_000 },
-  { id: 'sellout', icon: '🏟️', name: 'Sold out',            desc: 'Fill the arena to 99%+ on a home night',        reward: 1_000_000 },
-  { id: 'flip',    icon: '📈', name: 'Buy low, sell high',  desc: 'Sell a player for more than you paid',          reward: 1_500_000 },
-  { id: 'streak3', icon: '⚡', name: 'Heater',              desc: 'Win 3 games in a row',                          reward: 2_000_000 },
-  { id: 'rich',    icon: '💰', name: 'Money machine',       desc: 'Grow franchise value 25% above where you started', reward: 2_000_000 },
-  { id: 'techmax', icon: '🚀', name: 'Silicon franchise',   desc: 'Max out any technology track',                  reward: 2_500_000 },
+  { id: 'price',   icon: 'ticket', name: 'Price the house',    desc: 'Set your ticket price (drag the slider)',       reward: 500_000 },
+  { id: 'win1',    icon: 'basketball', name: 'First blood',         desc: 'Win a game',                                    reward: 750_000 },
+  { id: 'sign',    icon: 'roster', name: 'Deal maker',          desc: 'Sign a player from the trade market',           reward: 750_000 },
+  { id: 'tech1',   icon: 'tech', name: 'Early adopter',       desc: 'Buy any technology upgrade',                    reward: 1_000_000 },
+  { id: 'hype60',  icon: 'flame', name: 'Hot ticket',          desc: 'Reach 60 fan hype',                             reward: 1_000_000 },
+  { id: 'sellout', icon: 'office', name: 'Sold out',            desc: 'Fill the arena to 99%+ on a home night',        reward: 1_000_000 },
+  { id: 'flip',    icon: 'market', name: 'Buy low, sell high',  desc: 'Sell a player for more than you paid',          reward: 1_500_000 },
+  { id: 'streak3', icon: 'zap', name: 'Heater',              desc: 'Win 3 games in a row',                          reward: 2_000_000 },
+  { id: 'rich',    icon: 'banknote', name: 'Money machine',       desc: 'Grow franchise value 25% above where you started', reward: 2_000_000 },
+  { id: 'techmax', icon: 'rocket', name: 'Silicon franchise',   desc: 'Max out any technology track',                  reward: 2_500_000 },
 ];
 
 /* Play-by-play flavor for the live game animation. {p} = one of your players. */
@@ -133,6 +133,31 @@ const PBP_OPP = [
   'Tough bucket inside by {o}',
   '{o} converts in transition',
 ];
+
+/* ---------- monetization foundation (all optional, all off by default) ----------
+   SUPPORT.links: fill in your own tip/sponsor URLs (Ko-fi, Stripe Payment Link,
+   GitHub Sponsors...) and they appear as buttons in the Support modal.
+   SUPPORT.codeHashes: djb2 hashes of supporter codes (sold via Gumroad/Stripe or
+   given to friends). Generate one:
+     node -e "let s=process.argv[1],h=5381;for(const c of s)h=(h*33^c.charCodeAt(0))>>>0;console.log(h.toString(36))" COURTSIDE-YOURCODE
+   HOUSE_SPONSOR: a single tasteful, thematic sponsor slot on the Front Office
+   ("This season presented by ..."). null hides it entirely. */
+const SUPPORT = {
+  links: [
+    // { label: 'Buy the owner a coffee', url: 'https://ko-fi.com/yourname' },
+    // { label: 'Season ticket ($5, one-time)', url: 'https://buy.stripe.com/...' },
+  ],
+  codeHashes: ['14bjm7h', '1eelf7z'],   // COURTSIDE-FOUNDER, COURTSIDE-DEMO
+};
+const HOUSE_SPONSOR = null;   // e.g. { name: 'Halftime Coffee Co.', tagline: 'Brewed for the 4th quarter', url: 'https://example.com' }
+
+const THEMES = [
+  { id: 'midnight', name: 'Midnight', free: true },
+  { id: 'hardwood', name: 'Hardwood', free: false },
+  { id: 'neon',     name: 'Neon',     free: false },
+];
+const SUPPORTER_KEY = 'courtside-capital-supporter';
+const THEME_KEY = 'courtside-capital-theme';
 
 const STREAK_KEY = 'courtside-capital-streak';
 const STREAK_BONUS_PER_DAY = 250_000;   // × consecutive days, capped at 7
