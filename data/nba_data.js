@@ -6,7 +6,7 @@
  */
 
 const NBA_DATA = {
-  asOf: '2026-08-03 (via scripts/update-rosters.mjs)',
+  asOf: '2026-08-10 (via scripts/update-rosters.mjs)',
   teams: [
     { name: 'Atlanta Hawks', abbr: 'ATL', players: [
       ['Jalen Johnson', 'SF', 24, 85],
@@ -54,7 +54,7 @@ const NBA_DATA = {
       ['Brandon Miller', 'SF', 23, 84],
       ['Coby White', 'PG', 26, 82],
       ['Naz Reid', 'C', 26, 79],
-      ['Kon Knueppel', 'PG', 20, 76],
+      ['Kon Knueppel', 'PG', 21, 76],
       ['Grayson Allen', 'PG', 30, 74],
       ['Dorian Finney-Smith', 'SF', 33, 74],
       ['Tre Mann', 'PG', 25, 74],
@@ -115,10 +115,10 @@ const NBA_DATA = {
       ['Marvin Bagley III', 'SF', 27, 74],
       ['Tyus Jones', 'PG', 30, 74],
       ['Zeke Nnaji', 'SF', 25, 74],
+      ['Lonnie Walker IV', 'PG', 27, 74],
       ['Peyton Watson', 'PG', 23, 74],
       ['David Roddy', 'SF', 25, 72],
       ['Jalen Pickett', 'PG', 26, 71],
-      ['Julian Strawther', 'PG', 24, 71],
     ]},
     { name: 'Detroit Pistons', abbr: 'DET', players: [
       ['Cade Cunningham', 'PG', 24, 90],
@@ -143,10 +143,10 @@ const NBA_DATA = {
       ['De\'Anthony Melton', 'PG', 28, 74],
       ['Moses Moody', 'PG', 24, 74],
       ['Al Horford', 'C', 40, 73],
+      ['Gary Payton II', 'PG', 33, 73],
       ['Nate Williams', 'PG', 27, 72],
       ['Gui Santos', 'SF', 24, 71],
       ['Jimmy Butler III', 'SF', 36, 70],
-      ['Malevy Leons', 'SF', 26, 69],
     ]},
     { name: 'Houston Rockets', abbr: 'HOU', players: [
       ['Kevin Durant', 'SF', 37, 90],
@@ -247,7 +247,7 @@ const NBA_DATA = {
       ['Jaime Jaquez Jr.', 'SF', 25, 71],
     ]},
     { name: 'Minnesota Timberwolves', abbr: 'MIN', players: [
-      ['Anthony Edwards', 'PG', 24, 93],
+      ['Anthony Edwards', 'PG', 25, 93],
       ['LaMelo Ball', 'PG', 24, 86],
       ['Rudy Gobert', 'C', 34, 82],
       ['Jaden McDaniels', 'SF', 25, 80],
@@ -285,8 +285,8 @@ const NBA_DATA = {
       ['Landry Shamet', 'PG', 29, 74],
       ['Jordan Clarkson', 'PG', 34, 73],
       ['Andre Drummond', 'C', 32, 72],
-      ['Trey Jemison III', 'SF', 26, 71],
       ['Pacome Dadiet', 'SF', 21, 69],
+      ['Tyler Kolek', 'PG', 25, 69],
     ]},
     { name: 'Oklahoma City Thunder', abbr: 'OKC', players: [
       ['Shai Gilgeous-Alexander', 'PG', 28, 97],
@@ -395,10 +395,10 @@ const NBA_DATA = {
       ['Kyle Anderson', 'SF', 32, 74],
       ['Gradey Dick', 'PG', 22, 74],
       ['A.J. Lawson', 'PG', 26, 72],
+      ['Andre Jackson Jr.', 'PG', 24, 71],
       ['Trayce Jackson-Davis', 'SF', 26, 71],
+      ['Trey Jemison III', 'C', 26, 71],
       ['Collin Murray-Boyles', 'SF', 21, 71],
-      ['Ja\'Kobe Walter', 'PG', 21, 71],
-      ['Jamison Battle', 'SF', 25, 69],
     ]},
     { name: 'Utah Jazz', abbr: 'UTAH', players: [
       ['Jaren Jackson Jr.', 'SF', 26, 86],
