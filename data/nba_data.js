@@ -6,7 +6,7 @@
  */
 
 const NBA_DATA = {
-  asOf: '2026-08-31 (via scripts/update-rosters.mjs)',
+  asOf: '2026-09-07 (via scripts/update-rosters.mjs)',
   teams: [
     { name: 'Atlanta Hawks', abbr: 'ATL', players: [
       ['Jalen Johnson', 'SF', 24, 85],
@@ -15,7 +15,7 @@ const NBA_DATA = {
       ['Luguentz Dort', 'PG', 27, 76],
       ['CJ McCollum', 'PG', 34, 76],
       ['Buddy Hield', 'PG', 33, 75],
-      ['Nickeil Alexander-Walker', 'PG', 27, 74],
+      ['Nickeil Alexander-Walker', 'PG', 28, 74],
       ['Jock Landale', 'C', 30, 74],
       ['Aaron Wiggins', 'PG', 27, 74],
       ['Corey Kispert', 'SF', 27, 72],
@@ -172,7 +172,7 @@ const NBA_DATA = {
       ['Jay Huff', 'C', 29, 74],
       ['T.J. McConnell', 'PG', 34, 74],
       ['Kelly Oubre Jr.', 'PG', 30, 74],
-      ['Jarace Walker', 'SF', 22, 74],
+      ['Jarace Walker', 'SF', 23, 74],
       ['Larry Nance Jr.', 'SF', 33, 73],
       ['Quenton Jackson', 'PG', 27, 72],
     ]},
@@ -226,7 +226,7 @@ const NBA_DATA = {
       ['Bobby Portis', 'SF', 31, 76],
       ['Tim Hardaway Jr.', 'PG', 34, 74],
       ['Nikola Jovic', 'SF', 23, 74],
-      ['Davion Mitchell', 'PG', 27, 74],
+      ['Davion Mitchell', 'PG', 28, 74],
       ['Nick Richards', 'C', 28, 74],
       ['Simone Fontecchio', 'SF', 30, 72],
       ['Dru Smith', 'PG', 28, 72],
@@ -257,8 +257,8 @@ const NBA_DATA = {
       ['John Konchar', 'PG', 30, 74],
       ['Trey Lyles', 'SF', 30, 74],
       ['Terrence Shannon Jr.', 'PG', 26, 73],
+      ['Jonathan Kuminga', 'SF', 23, 72],
       ['Julian Phillips', 'SF', 22, 71],
-      ['Jaylen Clark', 'PG', 24, 69],
     ]},
     { name: 'New Orleans Pelicans', abbr: 'NO', players: [
       ['Zion Williamson', 'SF', 26, 86],
@@ -275,7 +275,7 @@ const NBA_DATA = {
       ['Trendon Watford', 'SF', 25, 71],
     ]},
     { name: 'New York Knicks', abbr: 'NY', players: [
-      ['Jalen Brunson', 'PG', 29, 91],
+      ['Jalen Brunson', 'PG', 30, 91],
       ['Karl-Anthony Towns', 'C', 30, 88],
       ['OG Anunoby', 'SF', 29, 82],
       ['Mikal Bridges', 'PG', 30, 81],
@@ -313,8 +313,8 @@ const NBA_DATA = {
       ['Jevon Carter', 'PG', 30, 74],
       ['Goga Bitadze', 'C', 27, 73],
       ['Jonathan Isaac', 'SF', 28, 73],
+      ['Malaki Branham', 'SF', 23, 72],
       ['Jamal Cain', 'SF', 27, 72],
-      ['Colin Castleton', 'C', 26, 71],
     ]},
     { name: 'Philadelphia 76ers', abbr: 'PHI', players: [
       ['Jaylen Brown', 'PG', 29, 90],
@@ -325,10 +325,10 @@ const NBA_DATA = {
       ['Anfernee Simons', 'PG', 27, 74],
       ['Dominick Barlow', 'SF', 23, 72],
       ['Jabari Walker', 'SF', 24, 72],
+      ['Tacko Fall', 'C', 30, 71],
       ['Rayan Rupert', 'PG', 22, 71],
       ['Dean Wade', 'SF', 29, 71],
       ['Adem Bona', 'C', 23, 69],
-      ['Justin Edwards', 'SF', 22, 69],
     ]},
     { name: 'Phoenix Suns', abbr: 'PHX', players: [
       ['Devin Booker', 'PG', 29, 90],
@@ -388,7 +388,7 @@ const NBA_DATA = {
     ]},
     { name: 'Toronto Raptors', abbr: 'TOR', players: [
       ['Scottie Barnes', 'SF', 25, 85],
-      ['Brandon Ingram', 'SF', 28, 83],
+      ['Brandon Ingram', 'SF', 29, 83],
       ['RJ Barrett', 'SF', 26, 79],
       ['Jakob Poeltl', 'C', 30, 78],
       ['Immanuel Quickley', 'PG', 27, 78],
@@ -410,7 +410,7 @@ const NBA_DATA = {
       ['Josh Green', 'PG', 25, 74],
       ['Jaxson Hayes', 'C', 26, 74],
       ['Svi Mykhailiuk', 'PG', 29, 74],
-      ['Josh Okogie', 'PG', 27, 74],
+      ['Josh Okogie', 'PG', 28, 74],
       ['Kyle Filipowski', 'SF', 22, 73],
       ['Jusuf Nurkic', 'C', 32, 73],
     ]},
