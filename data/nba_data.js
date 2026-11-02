@@ -6,7 +6,7 @@
  */
 
 const NBA_DATA = {
-  asOf: '2026-10-26 (via scripts/update-rosters.mjs)',
+  asOf: '2026-11-02 (via scripts/update-rosters.mjs)',
   teams: [
     { name: 'Atlanta Hawks', abbr: 'ATL', players: [
       ['Jalen Johnson', 'SF', 24, 85],
@@ -139,7 +139,7 @@ const NBA_DATA = {
       ['Kristaps Porzingis', 'C', 31, 84],
       ['Draymond Green', 'SF', 36, 78],
       ['Brandin Podziemski', 'PG', 23, 77],
-      ['Charles Bassey', 'C', 25, 74],
+      ['Charles Bassey', 'C', 26, 74],
       ['De\'Anthony Melton', 'PG', 28, 74],
       ['Moses Moody', 'PG', 24, 74],
       ['Brandon Williams', 'PG', 26, 74],
@@ -184,11 +184,11 @@ const NBA_DATA = {
       ['Gradey Dick', 'PG', 22, 74],
       ['Derrick Jones Jr.', 'SF', 29, 74],
       ['Brook Lopez', 'C', 38, 74],
+      ['Blake Wesley', 'PG', 23, 74],
       ['Bradley Beal', 'PG', 33, 73],
       ['Kris Dunn', 'PG', 32, 72],
       ['Isaiah Jackson', 'SF', 24, 72],
       ['Jordan Miller', 'PG', 26, 72],
-      ['Jalen Pickett', 'PG', 27, 72],
     ]},
     { name: 'Los Angeles Lakers', abbr: 'LAL', players: [
       ['Luka Doncic', 'PG', 27, 96],
@@ -258,7 +258,7 @@ const NBA_DATA = {
       ['Terrence Shannon Jr.', 'PG', 26, 73],
       ['Jonathan Kuminga', 'SF', 24, 72],
       ['Jaylen Clark', 'PG', 25, 71],
-      ['Zyon Pullin', 'PG', 25, 71],
+      ['Enrique Freeman', 'SF', 26, 71],
     ]},
     { name: 'New Orleans Pelicans', abbr: 'NO', players: [
       ['Zion Williamson', 'SF', 26, 86],
@@ -267,7 +267,7 @@ const NBA_DATA = {
       ['Bennedict Mathurin', 'PG', 24, 79],
       ['Jordan Poole', 'PG', 27, 78],
       ['Yves Missi', 'C', 22, 75],
-      ['Saddiq Bey', 'PG', 27, 74],
+      ['Saddiq Bey', 'SF', 27, 74],
       ['Herbert Jones', 'SF', 28, 74],
       ['Bryce McGowens', 'PG', 23, 74],
       ['Derik Queen', 'C', 21, 74],
@@ -331,7 +331,7 @@ const NBA_DATA = {
       ['Adem Bona', 'C', 23, 71],
     ]},
     { name: 'Phoenix Suns', abbr: 'PHX', players: [
-      ['Devin Booker', 'PG', 29, 90],
+      ['Devin Booker', 'PG', 30, 90],
       ['Jalen Green', 'PG', 24, 81],
       ['Miles Bridges', 'SF', 28, 80],
       ['Mark Williams', 'C', 24, 77],
@@ -368,14 +368,14 @@ const NBA_DATA = {
       ['Ben Simmons', 'PG', 30, 74],
       ['Leaky Black', 'SF', 27, 71],
       ['Nique Clifford', 'PG', 24, 71],
-      ['Jonathan Mogbo', 'SF', 24, 71],
+      ['Jonathan Mogbo', 'SF', 25, 71],
       ['Daeqwon Plowden', 'PG', 28, 71],
       ['Dylan Cardwell', 'C', 24, 69],
     ]},
     { name: 'San Antonio Spurs', abbr: 'SA', players: [
       ['Victor Wembanyama', 'SF', 22, 94],
       ['De\'Aaron Fox', 'PG', 28, 87],
-      ['Stephon Castle', 'PG', 21, 80],
+      ['Stephon Castle', 'PG', 22, 80],
       ['Dylan Harper', 'PG', 20, 78],
       ['Devin Vassell', 'PG', 26, 78],
       ['Tobias Harris', 'SF', 34, 76],
