@@ -6,7 +6,7 @@
  */
 
 const NBA_DATA = {
-  asOf: '2026-11-09 (via scripts/update-rosters.mjs)',
+  asOf: '2026-11-16 (via scripts/update-rosters.mjs)',
   teams: [
     { name: 'Atlanta Hawks', abbr: 'ATL', players: [
       ['Jalen Johnson', 'SF', 24, 85],
@@ -89,8 +89,8 @@ const NBA_DATA = {
       ['Sam Merrill', 'PG', 30, 73],
       ['Riley Minix', 'SF', 26, 71],
       ['Craig Porter Jr.', 'PG', 26, 71],
+      ['Nae\'Qwan Tomlin', 'SF', 25, 71],
       ['Jaylon Tyson', 'PG', 23, 71],
-      ['Tyrese Proctor', 'PG', 22, 69],
     ]},
     { name: 'Dallas Mavericks', abbr: 'DAL', players: [
       ['Kyrie Irving', 'PG', 34, 88],
@@ -212,7 +212,7 @@ const NBA_DATA = {
       ['Jaylen Wells', 'SF', 23, 75],
       ['Taylor Hendricks', 'SF', 22, 73],
       ['Cedric Coward', 'SF', 23, 72],
-      ['Scotty Pippen Jr.', 'PG', 25, 72],
+      ['Scotty Pippen Jr.', 'PG', 26, 72],
       ['Olivier-Maxence Prosper', 'SF', 24, 72],
       ['GG Jackson', 'SF', 21, 71],
       ['Kris Murray', 'SF', 26, 71],
@@ -271,12 +271,12 @@ const NBA_DATA = {
       ['Herbert Jones', 'SF', 28, 74],
       ['Bryce McGowens', 'PG', 24, 74],
       ['Derik Queen', 'C', 21, 74],
-      ['Trendon Watford', 'SF', 25, 74],
+      ['Trendon Watford', 'SF', 26, 74],
       ['AJ Johnson', 'PG', 21, 71],
     ]},
     { name: 'New York Knicks', abbr: 'NY', players: [
       ['Jalen Brunson', 'PG', 30, 91],
-      ['Karl-Anthony Towns', 'C', 30, 88],
+      ['Karl-Anthony Towns', 'C', 31, 88],
       ['OG Anunoby', 'SF', 29, 82],
       ['Mikal Bridges', 'PG', 30, 81],
       ['Josh Hart', 'PG', 31, 78],
@@ -303,7 +303,7 @@ const NBA_DATA = {
       ['Ajay Mitchell', 'PG', 24, 69],
     ]},
     { name: 'Orlando Magic', abbr: 'ORL', players: [
-      ['Paolo Banchero', 'SF', 23, 88],
+      ['Paolo Banchero', 'SF', 24, 88],
       ['Franz Wagner', 'SF', 25, 86],
       ['Desmond Bane', 'PG', 28, 84],
       ['Nikola Vucevic', 'C', 36, 80],
@@ -369,8 +369,8 @@ const NBA_DATA = {
       ['Leaky Black', 'SF', 27, 71],
       ['Jonathan Mogbo', 'SF', 25, 71],
       ['Daeqwon Plowden', 'PG', 28, 71],
+      ['Mason Plumlee', 'C', 36, 70],
       ['Dylan Cardwell', 'C', 24, 69],
-      ['Sean Pedulla', 'PG', 24, 69],
     ]},
     { name: 'San Antonio Spurs', abbr: 'SA', players: [
       ['Victor Wembanyama', 'SF', 22, 94],
