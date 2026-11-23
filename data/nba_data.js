@@ -6,7 +6,7 @@
  */
 
 const NBA_DATA = {
-  asOf: '2026-11-16 (via scripts/update-rosters.mjs)',
+  asOf: '2026-11-23 (via scripts/update-rosters.mjs)',
   teams: [
     { name: 'Atlanta Hawks', abbr: 'ATL', players: [
       ['Jalen Johnson', 'SF', 24, 85],
@@ -51,7 +51,7 @@ const NBA_DATA = {
       ['Drake Powell', 'PG', 21, 69],
     ]},
     { name: 'Charlotte Hornets', abbr: 'CHA', players: [
-      ['Brandon Miller', 'SF', 23, 84],
+      ['Brandon Miller', 'SF', 24, 84],
       ['Coby White', 'PG', 26, 82],
       ['Naz Reid', 'C', 27, 79],
       ['Kon Knueppel', 'PG', 21, 76],
@@ -70,7 +70,7 @@ const NBA_DATA = {
       ['Nic Claxton', 'C', 27, 80],
       ['Matas Buzelis', 'SF', 22, 79],
       ['Buddy Hield', 'PG', 33, 75],
-      ['Zach Collins', 'SF', 28, 74],
+      ['Zach Collins', 'SF', 29, 74],
       ['Isaac Okoro', 'SF', 25, 74],
       ['Patrick Williams', 'SF', 25, 74],
       ['Tre Jones', 'PG', 26, 73],
@@ -122,7 +122,7 @@ const NBA_DATA = {
     ]},
     { name: 'Detroit Pistons', abbr: 'DET', players: [
       ['Cade Cunningham', 'PG', 25, 90],
-      ['Jalen Duren', 'C', 22, 82],
+      ['Jalen Duren', 'C', 23, 82],
       ['Ausar Thompson', 'PG', 23, 79],
       ['John Collins', 'SF', 29, 78],
       ['Javonte Green', 'PG', 33, 74],
@@ -142,7 +142,7 @@ const NBA_DATA = {
       ['Charles Bassey', 'C', 26, 74],
       ['De\'Anthony Melton', 'PG', 28, 74],
       ['Moses Moody', 'PG', 24, 74],
-      ['Brandon Williams', 'PG', 26, 74],
+      ['Brandon Williams', 'PG', 27, 74],
       ['Al Horford', 'C', 40, 73],
       ['Georges Niang', 'SF', 33, 73],
       ['Gary Payton II', 'PG', 33, 73],
@@ -181,7 +181,7 @@ const NBA_DATA = {
       ['Brandon Ingram', 'SF', 29, 83],
       ['Rui Hachimura', 'SF', 28, 76],
       ['Max Strus', 'PG', 30, 76],
-      ['Gradey Dick', 'PG', 22, 74],
+      ['Gradey Dick', 'PG', 23, 74],
       ['Derrick Jones Jr.', 'SF', 29, 74],
       ['Brook Lopez', 'C', 38, 74],
       ['Blake Wesley', 'PG', 23, 74],
@@ -210,7 +210,7 @@ const NBA_DATA = {
       ['Jerami Grant', 'SF', 32, 75],
       ['Isaiah Stewart', 'C', 25, 75],
       ['Jaylen Wells', 'SF', 23, 75],
-      ['Taylor Hendricks', 'SF', 22, 73],
+      ['Taylor Hendricks', 'SF', 23, 73],
       ['Cedric Coward', 'SF', 23, 72],
       ['Scotty Pippen Jr.', 'PG', 26, 72],
       ['Olivier-Maxence Prosper', 'SF', 24, 72],
@@ -323,7 +323,7 @@ const NBA_DATA = {
       ['VJ Edgecombe', 'PG', 21, 78],
       ['Kentavious Caldwell-Pope', 'PG', 33, 74],
       ['Anfernee Simons', 'PG', 27, 74],
-      ['Dean Wade', 'SF', 29, 74],
+      ['Dean Wade', 'SF', 30, 74],
       ['Dominick Barlow', 'SF', 23, 72],
       ['Tacko Fall', 'C', 30, 72],
       ['Rayan Rupert', 'PG', 22, 72],
@@ -408,7 +408,7 @@ const NBA_DATA = {
       ['Mo Bamba', 'C', 28, 74],
       ['Tony Bradley', 'C', 28, 74],
       ['Isaiah Collier', 'PG', 22, 74],
-      ['Josh Green', 'PG', 25, 74],
+      ['Josh Green', 'PG', 26, 74],
       ['Jaxson Hayes', 'C', 26, 74],
       ['Svi Mykhailiuk', 'PG', 29, 74],
       ['Jusuf Nurkic', 'C', 32, 74],
